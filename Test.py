@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from astropy.io import fits
 
+#Open the SDSS file
 with fits.open("spec-8521-58175-0279.fits") as hdul:
     subset = hdul[1]        
 
@@ -10,21 +11,16 @@ with fits.open("spec-8521-58175-0279.fits") as hdul:
     sdss_measured_wl = 10**subset.data['loglam'] #Wavelength in Angstroms
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
-#Plotting sdss flux against wavelength
-plt.plot(sdss_measured_wl, sdss_flux, label = 'Spectrum')
-plt.xlabel('Wavelength / Å', fontsize = 16)
-plt.ylabel('Flux', fontsize = 16)
-plt.legend(loc = 'upper right')
-plt.show()
-
-#Open the CSV file using pandas
+#Open the DESI file
 df = pd.read_csv('spectrum_desi_152517.57+401357.6.csv')
-
-#Extract the first and second columns
 wavelength_desi = df.iloc[1:, 0]  # First column, skipping the first row (header)
 flux_desi = df.iloc[1:, 1]  # Second column, skipping the first row (header)
 
-plt.plot(wavelength_desi, flux_desi, label = 'Desi')
+#Plot of SDSS & DESI Spectra
+plt.figure(figsize=(18,6))
+plt.plot(wavelength_desi, flux_desi, label = 'DESI')
+plt.plot(sdss_measured_wl, sdss_flux, label = 'SDSS')
 plt.xlabel('Wavelength / Å')
-plt.ylabel('Flux')
+plt.ylabel('Flux / ?')
+plt.legend(loc = 'upper right')
 plt.show()
