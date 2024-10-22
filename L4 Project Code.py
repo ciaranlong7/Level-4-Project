@@ -11,40 +11,6 @@ quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
-# xaxis = np.linspace(-50,150,100)
-# sigma = 10.
-# center = 50.
-# synth_data = np.exp(-(xaxis-center)**2/(sigma**2 * 2.))
-
-# # Add noise
-# stddev = 0.1
-# noise = np.random.randn(xaxis.size)*stddev
-# error = stddev*np.ones_like(synth_data)
-# data = noise+synth_data
-
-# # this will give a "blank header" warning, which is fine
-# sp = pyspeckit.Spectrum(data=data, error=error, xarr=xaxis,
-#                         xarrkwargs={'unit':'km/s'},
-#                         unit='erg/s/cm^2/AA')
-
-# sp.plotter()
-
-# # Fit with automatic guesses
-# sp.specfit(fittype='gaussian')
-
-# # Fit with input guesses
-# # The guesses initialize the fitter
-# # This approach uses the 0th, 1st, and 2nd moments
-# amplitude_guess = data.max()
-# center_guess = (data*xaxis).sum()/data.sum()
-# width_guess = (data.sum() / amplitude_guess / (2*np.pi))**0.5
-# guesses = [amplitude_guess, center_guess, width_guess]
-# sp.specfit(fittype='gaussian', guesses=guesses)
-
-# sp.plotter(errstyle='fill')
-# sp.specfit.plot_fit()
-
-
 #Open the SDSS file
 with fits.open("spec-8521-58175-0279.fits") as hdul:
     subset = hdul[1]        
@@ -102,10 +68,10 @@ plt.plot(wavelength_desi, DESI_rolling, color = 'blue', label = 'DESI')
 plt.plot(sdss_measured_wl, sdss_flux, alpha = 0.2, color = 'orange')
 # plt.plot(sdss_measured_wl, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
 plt.plot(sdss_measured_wl, SDSS_rolling, color = 'orange', label = 'SDSS')
-plt.axvline(H_alpha*(1+z), linewidth=2, color='red', label = 'H alpha')
-plt.axvline(H_beta*(1+z), linewidth=2, color='red', label = 'H beta')
-plt.axvline(C3*(1+z), linewidth=2, color='red', label = 'C [iii')
-plt.axvline(C4*(1+z), linewidth=2, color='red', label = 'C iv')
+plt.axvline(H_alpha*(1+z), linewidth=2, color='goldenrod', label = 'H alpha')
+plt.axvline(H_beta*(1+z), linewidth=2, color='green', label = 'H beta')
+plt.axvline(C3*(1+z), linewidth=2, color='maroon', label = 'C [iii')
+# plt.axvline(C4*(1+z), linewidth=2, color='darkred', label = 'C iv')
 plt.axvline(Mg2*(1+z), linewidth=2, color='red', label = 'Mg ii')
 plt.xlabel('Wavelength / Å')
 plt.ylabel('Flux / 10-17 ergs/s/cm2/Å')
@@ -128,10 +94,11 @@ import warnings
 from specutils.fitting import fit_generic_continuum
 with warnings.catch_warnings():  # Ignore warnings
     warnings.simplefilter('ignore')
-    cont_norm_spec = spec / fit_generic_continuum(spec)(spec.spectral_axis)
+cont_norm_spec = spec / fit_generic_continuum(spec)(spec.spectral_axis)
 
-ax.step(cont_norm_spec.wavelength, cont_norm_spec.flux)  
-ax.set_xlim(654 * u.nm, 660 * u.nm)
+ax.step(cont_norm_spec.spectral_axis, cont_norm_spec.flux)  
+ax.set_xlim(680 * u.nm, 700 * u.nm) # trying to select O [iii] emission line.
+plt.show()
 
 from specutils import SpectralRegion
 from specutils.analysis import equivalent_width
