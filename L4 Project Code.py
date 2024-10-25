@@ -46,7 +46,9 @@ wavelength_desi = wavelength_desi[9:]
 sdss_flux = sdss_flux[9:]
 flux_desi = flux_desi[9:]
 
+# Gaussian smoothing
 # adjust stddev to control the degree of smoothing. Higher stddev means smoother
+# https://en.wikipedia.org/wiki/Gaussian_blur
 gaussian_kernel = Gaussian1DKernel(stddev=3)
 
 # Smooth the flux data using the Gaussian kernel
@@ -63,11 +65,11 @@ z = 0.385
 #Plot of SDSS & DESI Spectra
 plt.figure(figsize=(18,6))
 plt.plot(wavelength_desi, flux_desi, alpha = 0.2, color = 'blue')
-# plt.plot(wavelength_desi, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
-plt.plot(wavelength_desi, DESI_rolling, color = 'blue', label = 'DESI')
+plt.plot(wavelength_desi, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
+# plt.plot(wavelength_desi, DESI_rolling, color = 'blue', label = 'DESI')
 plt.plot(sdss_measured_wl, sdss_flux, alpha = 0.2, color = 'orange')
-# plt.plot(sdss_measured_wl, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
-plt.plot(sdss_measured_wl, SDSS_rolling, color = 'orange', label = 'SDSS')
+plt.plot(sdss_measured_wl, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
+# plt.plot(sdss_measured_wl, SDSS_rolling, color = 'orange', label = 'SDSS')
 plt.axvline(H_alpha*(1+z), linewidth=2, color='goldenrod', label = 'H alpha')
 plt.axvline(H_beta*(1+z), linewidth=2, color='green', label = 'H beta')
 plt.axvline(C3*(1+z), linewidth=2, color='maroon', label = 'C [iii')
@@ -75,34 +77,38 @@ plt.axvline(C3*(1+z), linewidth=2, color='maroon', label = 'C [iii')
 plt.axvline(Mg2*(1+z), linewidth=2, color='red', label = 'Mg ii')
 plt.xlabel('Wavelength / Å')
 plt.ylabel('Flux / 10-17 ergs/s/cm2/Å')
-# plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
-plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
+plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
+# plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
 plt.legend(loc = 'upper right')
-plt.show()
-
-#Starting to do some fitting:
-spec = Spectrum1D(spectral_axis=units_sdss_measured_wl, flux=units_sdss_flux)
-# This line creates a figure (f) and an axis (ax) object using matplotlib.pyplot.subplots(). These objects will be used to generate the plot.
-# f: The figure that contains the plot.
-# ax: The specific axis on which the plot will be drawn
-f, ax = plt.subplots()
-# # This plots the data so the values change in discrete steps rather than a continuous line.
-# ax.step(spec.spectral_axis, spec.flux, color='orange')
 # plt.show()
+
+# #Starting to do some fitting:
+filename = 'https://data.sdss.org/sas/dr16/sdss/spectro/redux/26/spectra/1323/spec-1323-52797-0012.fits'
+# The spectrum is in the second HDU of this file.
+with fits.open(filename) as f:
+    specdata = f[1].data
+
+lamb = 10**specdata['loglam'] * u.AA 
+flux = specdata['flux'] * 10**-17 * u.Unit('erg cm-2 s-1 AA-1') 
+spec = Spectrum1D(spectral_axis=lamb, flux=flux)
+
+f, ax = plt.subplots()  
+ax.step(spec.spectral_axis, spec.flux)
 
 import warnings
 from specutils.fitting import fit_generic_continuum
 with warnings.catch_warnings():  # Ignore warnings
     warnings.simplefilter('ignore')
-cont_norm_spec = spec / fit_generic_continuum(spec)(spec.spectral_axis)
+    cont_norm_spec = spec / fit_generic_continuum(spec)(spec.spectral_axis)
 
-ax.step(cont_norm_spec.spectral_axis, cont_norm_spec.flux)  
-ax.set_xlim(680 * u.nm, 700 * u.nm) # trying to select O [iii] emission line.
+f, ax = plt.subplots()  
+ax.step(cont_norm_spec.wavelength, cont_norm_spec.flux)  
+ax.set_xlim(654 * u.nm, 660 * u.nm)
 plt.show()
 
 from specutils import SpectralRegion
 from specutils.analysis import equivalent_width
-equivalent_width(cont_norm_spec, regions=SpectralRegion(6562 * u.AA, 6575 * u.AA)) #vary depending on which line width you wish to look at
+equivalent_width(cont_norm_spec, regions=SpectralRegion(6562 * u.AA, 6575 * u.AA))
 
 #Now I want to recreate some plots from the LATEST Guo data.
 #I have access to table 4, so I will recreate figure 1:
