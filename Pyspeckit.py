@@ -8,7 +8,9 @@ SIIa = 6718.29
 SIIb = 6732.68
 
 # Initialize spectrum object and plot region surrounding Halpha-[NII] complex
-spec = pyspeckit.Spectrum('sample_sdss.txt', errorcol=2)
+# spec = pyspeckit.Spectrum('sample_sdss.txt', errorcol=2)
+spec = pyspeckit.spectrum.readers.fits_reader.open_1d_fits('spec-8521-58175-0279.fits', hdu=0, wcstype='', specnum=0, errspecnum=1)
+# spec = pyspeckit.Spectrum('spec-8521-58175-0279.fits')
 spec.plotter(xmin = 6450, xmax = 6775, ymin = 0, ymax = 150)
 
 # We fit the [NII] and [SII] doublets, and allow two components for Halpha.

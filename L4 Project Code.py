@@ -13,18 +13,24 @@ c = 299792458
 
 #Open the SDSS file
 with fits.open("spec-8521-58175-0279.fits") as hdul:
-    subset = hdul[1]        
+    subset = hdul[1]       
 
     sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
     units_sdss_flux = subset.data['flux'] * 10**-17 * u.Unit('erg cm-2 s-1 AA-1') #for fitting
-    sdss_measured_wl = 10**subset.data['loglam'] #Wavelength in Angstroms
-    units_sdss_measured_wl = 10**subset.data['loglam'] * u.AA 
+    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+    units_sdss_lamb = 10**subset.data['loglam'] * u.AA 
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
-     
+
 #Open the DESI file
 DESI_spec = pd.read_csv('spectrum_desi_152517.57+401357.6.csv')
-wavelength_desi = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-flux_desi = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+
+# Correcting for redshift.
+z = 0.385
+sdss_lamb = sdss_lamb/(1+z)
+desi_lamb = desi_lamb/(1+z)
+units_sdss_lamb = units_sdss_lamb/(1+z)
 
 #Calculate rolling average manually
 def rolling_average(arr, window_size):
@@ -40,11 +46,11 @@ def rolling_average(arr, window_size):
 
 #Manual Rolling averages
 SDSS_rolling = rolling_average(sdss_flux, 10)
-DESI_rolling = rolling_average(flux_desi, 10)
-sdss_measured_wl = sdss_measured_wl[9:]
-wavelength_desi = wavelength_desi[9:]
+DESI_rolling = rolling_average(desi_flux, 10)
+sdss_lamb = sdss_lamb[9:]
+desi_lamb = desi_lamb[9:]
 sdss_flux = sdss_flux[9:]
-flux_desi = flux_desi[9:]
+desi_flux = desi_flux[9:]
 
 # Gaussian smoothing
 # adjust stddev to control the degree of smoothing. Higher stddev means smoother
@@ -53,28 +59,25 @@ gaussian_kernel = Gaussian1DKernel(stddev=3)
 
 # Smooth the flux data using the Gaussian kernel
 Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
-Gaus_smoothed_DESI = convolve(flux_desi, gaussian_kernel)
+Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
 
 H_alpha = 6562.7
 H_beta = 4861.35
-C3 = 5696
+# C3 = ?
 C4 = 1548
 Mg2 = 2797
-z = 0.385
 
 #Plot of SDSS & DESI Spectra
 plt.figure(figsize=(18,6))
-plt.plot(wavelength_desi, flux_desi, alpha = 0.2, color = 'blue')
-plt.plot(wavelength_desi, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
-# plt.plot(wavelength_desi, DESI_rolling, color = 'blue', label = 'DESI')
-plt.plot(sdss_measured_wl, sdss_flux, alpha = 0.2, color = 'orange')
-plt.plot(sdss_measured_wl, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
-# plt.plot(sdss_measured_wl, SDSS_rolling, color = 'orange', label = 'SDSS')
-plt.axvline(H_alpha*(1+z), linewidth=2, color='goldenrod', label = 'H alpha')
-plt.axvline(H_beta*(1+z), linewidth=2, color='green', label = 'H beta')
-plt.axvline(C3*(1+z), linewidth=2, color='maroon', label = 'C [iii')
-# plt.axvline(C4*(1+z), linewidth=2, color='darkred', label = 'C iv')
-plt.axvline(Mg2*(1+z), linewidth=2, color='red', label = 'Mg ii')
+plt.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'blue')
+plt.plot(desi_lamb, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
+# plt.plot(desi_lamb, DESI_rolling, color = 'blue', label = 'DESI')
+plt.plot(sdss_lamb, sdss_flux, alpha = 0.2, color = 'orange')
+plt.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
+# plt.plot(sdss_lamb, SDSS_rolling, color = 'orange', label = 'SDSS')
+plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = 'H alpha')
+plt.axvline(H_beta, linewidth=2, color='green', label = 'H beta')
+plt.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
 plt.xlabel('Wavelength / Å')
 plt.ylabel('Flux / 10-17 ergs/s/cm2/Å')
 plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
@@ -90,25 +93,39 @@ with fits.open(filename) as f:
 
 lamb = 10**specdata['loglam'] * u.AA 
 flux = specdata['flux'] * 10**-17 * u.Unit('erg cm-2 s-1 AA-1') 
-spec = Spectrum1D(spectral_axis=lamb, flux=flux)
+
+spec = Spectrum1D(spectral_axis=units_sdss_lamb, flux=units_sdss_flux)
+# spec = Spectrum1D(spectral_axis=lamb, flux=flux)
+
+# print(np.isnan(units_sdss_lamb).sum())
+# print(np.isnan(units_sdss_flux).sum())
+# print(np.isnan(lamb).sum())
+# print(np.isnan(flux).sum())
+
+print(spec)
 
 f, ax = plt.subplots()  
 ax.step(spec.spectral_axis, spec.flux)
 
+
+# "Now maybe you want the equivalent width of a spectral line. That requires normalizing by a continuum estimate:""
 import warnings
 from specutils.fitting import fit_generic_continuum
 with warnings.catch_warnings():  # Ignore warnings
     warnings.simplefilter('ignore')
-    cont_norm_spec = spec / fit_generic_continuum(spec)(spec.spectral_axis)
+    cont_norm_spec = spec/fit_generic_continuum(spec)(spec.spectral_axis)
+
+print(fit_generic_continuum(spec)(spec.spectral_axis))
+#Problem is with above. I am printing the denominator, but it's just a list of 0s.
 
 f, ax = plt.subplots()  
 ax.step(cont_norm_spec.wavelength, cont_norm_spec.flux)  
-ax.set_xlim(654 * u.nm, 660 * u.nm)
+# ax.set_xlim(654 * u.nm, 657.5 * u.nm)
 plt.show()
 
 from specutils import SpectralRegion
 from specutils.analysis import equivalent_width
-equivalent_width(cont_norm_spec, regions=SpectralRegion(6562 * u.AA, 6575 * u.AA))
+equivalent_width(cont_norm_spec, regions=SpectralRegion(6540 * u.AA, 6575 * u.AA))
 
 #Now I want to recreate some plots from the LATEST Guo data.
 #I have access to table 4, so I will recreate figure 1:
