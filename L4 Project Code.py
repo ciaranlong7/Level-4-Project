@@ -63,7 +63,7 @@ Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
 
 H_alpha = 6562.7
 H_beta = 4861.35
-# C3 = ?
+# C3 = UV line
 C4 = 1548
 Mg2 = 2797
 
@@ -103,6 +103,7 @@ spec = Spectrum1D(spectral_axis=units_sdss_lamb, flux=units_sdss_flux)
 # print(np.isnan(flux).sum())
 
 print(spec)
+print(Spectrum1D(spectral_axis=lamb, flux=flux))
 
 f, ax = plt.subplots()  
 ax.step(spec.spectral_axis, spec.flux)
@@ -115,6 +116,8 @@ with warnings.catch_warnings():  # Ignore warnings
     warnings.simplefilter('ignore')
     cont_norm_spec = spec/fit_generic_continuum(spec)(spec.spectral_axis)
 
+#plot spectra theyre using. see what it looks like. Test what cases the spectra fitting works.
+
 print(fit_generic_continuum(spec)(spec.spectral_axis))
 #Problem is with above. I am printing the denominator, but it's just a list of 0s.
 
@@ -126,6 +129,40 @@ plt.show()
 from specutils import SpectralRegion
 from specutils.analysis import equivalent_width
 equivalent_width(cont_norm_spec, regions=SpectralRegion(6540 * u.AA, 6575 * u.AA))
+
+#Plotting MIR data
+def flux(mag, k): # k is the zero magnitude flux density. Taken from a table
+    return k*10**(-mag/2.5)
+
+W1_k = 309.540 #Janskys
+W2_k = 171.787
+
+MIR_data = pd.read_csv('Object_MIR_data.csv')
+
+# Filter the DataFrame for rows where cc_flags is 0
+filtered_rows = MIR_data[MIR_data.iloc[:, 15] == 0]
+
+# Extract W1 & W2 mag from the w1mpro & w2mpro columns (index 5, 9) of the filtered rows
+W1_mag = filtered_rows.iloc[:, 5]
+W1_mag = W1_mag.tolist()
+W2_mag = filtered_rows.iloc[:, 9]
+W2_mag = W2_mag.tolist()
+mjd_date = filtered_rows.iloc[:, 18]
+mjd_date = mjd_date.tolist()
+
+colour = []
+for i in range(len(W1_mag)):
+    colour.append(W2_mag[i] - W1_mag[i])
+
+plt.figure(figsize=(18,6))
+plt.scatter(mjd_date, W1_mag, color = 'orange', label = r'W1 (3.4 \u03bcm)')
+plt.scatter(mjd_date, W2_mag, color = 'blue', label = r'W2 (4.6 \u03bcm)')
+# plt.scatter(mjd_date, colour, color = 'red', label = r'Colour (W2 Flux - W1 Flux)')
+plt.xlabel('Date / mjd date')
+plt.ylabel('Magnitude')
+plt.title('W1, W2 vs time')
+plt.legend(loc = 'upper right')
+plt.show()
 
 #Now I want to recreate some plots from the LATEST Guo data.
 #I have access to table 4, so I will recreate figure 1:
