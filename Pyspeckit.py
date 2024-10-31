@@ -6,6 +6,8 @@ from astropy.io import fits
 file_path = 'spec-8521-58175-0279.fits'
 with fits.open(file_path) as hdul:
     hdul.info()
+#creating a spectrum from scratch. LOOK AT OTHER EXAMPLES, understand whats going on and can combine the examples
+#dont have to do pyspeckit from a file.
 
 # Rest wavelengths of the lines we are fitting - use as initial guesses
 NIIa = 6549.86
