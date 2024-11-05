@@ -62,21 +62,21 @@ Mg2 = 2797
 # #Plot of SDSS & DESI Spectra
 # plt.figure(figsize=(18,6))
 # #Original unsmoothed spectrum
-# plt.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'blue')
 # plt.plot(sdss_lamb, sdss_flux, alpha = 0.2, color = 'orange')
+# plt.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'blue')
 # #Gausian smoothing
-# plt.plot(desi_lamb, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
 # plt.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
+# plt.plot(desi_lamb, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
 # #Manual smoothing
-# # plt.plot(desi_lamb, DESI_rolling, color = 'blue', label = 'DESI')
 # # plt.plot(sdss_lamb, SDSS_rolling, color = 'orange', label = 'SDSS')
+# # plt.plot(desi_lamb, DESI_rolling, color = 'blue', label = 'DESI')
 # #Adding in positions of emission lines
 # plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = 'H alpha')
 # plt.axvline(H_beta, linewidth=2, color='green', label = 'H beta')
 # plt.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
 # #Axis labels
 # plt.xlabel('Wavelength / Å')
-# plt.ylabel('Flux / 10-17 ergs/s/cm2/Å')
+# plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # #Two different titles (for Gaussian/Manual)
 # plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
 # # plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
@@ -135,7 +135,10 @@ W2_averages = []
 W1_av_uncs = []
 W2_av_uncs = []
 mjd_date_ = []
-# Flaw in code - relies on a 'reset' data point after skips (eg after some W2 skips have finished, my code relies on a data point where W1 doesn't skip)
+one_epoch_W1 = []
+one_epoch_W1_unc = []
+one_epoch_W2 = []
+one_epoch_W2_unc = []
 if len(W1_mag) == len(W2_mag):
     i = 0
     j = 0
@@ -143,9 +146,6 @@ if len(W1_mag) == len(W2_mag):
     x = 0 #skip flag for W2
     y = 0 #skip flag for W1
     while i-k+1 < len(W1_mag):
-        # print(f'j = {j}')
-        # print(f'i = {i}')
-        # print(f'k = {k}')
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 j += 1
@@ -165,7 +165,7 @@ if len(W1_mag) == len(W2_mag):
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list)))) #see derivation in week 5 folder.
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-k][1])
+                    mjd_date_.append(W1_mag[i-k][1]) #Assumes that the mjd dates are so close that any difference between them is negligibile.
                     W1_list = []
                     W1_unc_list = []
                     W2_list = []
@@ -316,13 +316,14 @@ if len(W1_mag) == len(W2_mag):
                         i += 1
                         continue
                 else:
-                    print('flag') #this path shouldn't ever be used, but need to think about it some more to double check
+                    print('flag') #this path shouldn't ever be used.
 elif len(W1_mag) > len(W2_mag):
     i = 0
     j = 0
     k = 0
     x = 0 #skip flag for W2
     y = 0 #skip flag for W1
+    p = 0 #for grabbing only one epoch's data
     while i-k+1 < len(W1_mag):
         # print(f'j = {j}')
         # print(f'i = {i}')
@@ -696,25 +697,63 @@ DESI_mjd = DESI_mjd - mjd_date_[0]
 #Changing mjd date to days since start:
 mjd_date_ = [date - mjd_date_[0] for date in mjd_date_]
 
-#must propagate the uncertainties correctly
-# Assumption 1: Equally likely to get a value that's too high or too low.
-# Assumption 2: Errors are distributed in a bell curve about a "true" value.
-
 #Must zoom in on some of the epochs
+# Also plot colour
+# Also convert from mag to flux
 
 plt.figure(figsize=(18,6))
 #Averages:
-plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = r'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
-plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = r'W2 (4.6 \u03bcm)')
+plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
+plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
 #Vertical line for SDSS & DESI dates:
 plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
 plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
-
-# plt.scatter(mjd_date_W1, [tpl[0] for tpl in W1_mag], color = 'orange', label = r'W1 (3.4 \u03bcm)')
-# plt.scatter(mjd_date_W2, [tpl[0] for tpl in W2_mag], color = 'blue', label = r'W2 (4.6 \u03bcm)')
-# plt.scatter(mjd_date_colour, colour, color = 'red', label = r'Colour (W1 mag - W2 mag)')
+#Labels and Titles
 plt.xlabel('Days since first observation')
 plt.ylabel('Magnitude')
 plt.title('W1 & W2 magnitude vs time (ph_qual > B)')
 plt.legend(loc = 'upper left')
 plt.show()
+
+# # Making a big figure with DESI & SDSS spectra added in
+# fig = plt.figure(figsize=(18, 12))
+
+# common_ymin = -10
+# common_ymax = 20
+
+# # Original big plot in the first row, spanning both columns (ax1)
+# ax1 = fig.add_subplot(2, 1, 1)  # This will span the entire top row
+# ax1.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS')
+# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI')
+# ax1.set_ylabel('Magnitude')
+# ax1.set_title('W1 & W2 Magnitude vs Time (ph_qual > B)')
+# ax1.legend(loc='upper left')
+
+# # Create the two smaller plots side-by-side in the second row (ax2 and ax3)
+# ax2 = fig.add_subplot(2, 2, 3)  # Left plot in the second row
+# ax2.plot(sdss_lamb, sdss_flux, alpha = 0.2, color = 'forestgreen')
+# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'forestgreen')
+# ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = 'H alpha')
+# ax2.axvline(H_beta, linewidth=2, color='green', label = 'H beta')
+# ax2.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
+# ax2.set_xlabel('Wavelength / Å')
+# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# # ax2.set_ylim(common_ymin, common_ymax)
+# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectra')
+# ax2.legend(loc='upper left')
+
+# ax3 = fig.add_subplot(2, 2, 4)  # Right plot in the second row
+# ax3.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'midnightblue')
+# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color = 'midnightblue')
+# ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = 'H alpha')
+# ax3.axvline(H_beta, linewidth=2, color='green', label = 'H beta')
+# ax3.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
+# ax3.set_xlabel('Wavelength / Å')
+# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# # ax3.set_ylim(common_ymin, common_ymax)
+# ax3.set_title('Gaussian Smoothed Plot of DESI Spectra')
+# ax3.legend(loc='upper right')
+
+# plt.show()
