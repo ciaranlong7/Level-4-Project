@@ -149,19 +149,20 @@ if len(W1_mag) == len(W2_mag):
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 j += 1
-                i += 1
                 x += 1
                 if i == 0:
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
+                    i += 1
                     continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee no skip between W1_mag[i-k] & W_mag[i-k-1].
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
+                    i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list)))) #see derivation in week 5 folder.
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
                     mjd_date_.append(W1_mag[i-k][1])
@@ -173,18 +174,20 @@ if len(W1_mag) == len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
                 k += 1
-                i += 1
                 y += 1
                 if i == 0:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
@@ -200,6 +203,7 @@ if len(W1_mag) == len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
         else: #mjd dates are the same
             if i == 0:
@@ -326,15 +330,16 @@ elif len(W1_mag) > len(W2_mag):
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 j += 1
-                i += 1
                 x += 1
                 if i == 0:
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
+                    i += 1
                     continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee no skip between W1_mag[i-k] & W_mag[i-k-1].
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
+                    i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
@@ -350,18 +355,20 @@ elif len(W1_mag) > len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
                 k += 1
-                i += 1
                 y += 1
                 if i == 0:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
@@ -377,6 +384,7 @@ elif len(W1_mag) > len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
+                    i += 1
                     continue
         else: #mjd dates are the same
             if i == 0:
@@ -396,7 +404,6 @@ elif len(W1_mag) > len(W2_mag):
                     i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    print(f'W2{W2_mag[i-j][1] - W2_mag[i-j-1][1]}')
                     W1_averages.append(np.average(W1_list))
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
@@ -412,7 +419,7 @@ elif len(W1_mag) > len(W2_mag):
                     W2_unc_list.append(W2_mag[i-j][2])
                     i += 1
                     continue
-            elif y == 0: #There was a skip between two adjacent W1 data points; W1_mag[i-k][1] - W1_mag[i-k-1][1]. Final check to see if skip between two adjacent W1 data points
+            elif y == 0: #There was a skip between two adjacent W2 data points; W2_mag[i-k][1] - W2_mag[i-k-1][1]. Final check to see if skip between two adjacent W1 data points
                 x = 0
                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
                     W1_list.append(W1_mag[i-k][0])
@@ -422,7 +429,6 @@ elif len(W1_mag) > len(W2_mag):
                     i += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    print(f'W1 {W1_mag[i-k][1] - W1_mag[i-k-1][1]}')
                     W1_averages.append(np.average(W1_list))
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
@@ -503,19 +509,17 @@ elif len(W1_mag) < len(W2_mag):
         # print(f'k = {k}')
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
+                j += 1
+                x += 1
                 if i == 0:
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
                     i += 1
-                    x += 1
                     continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee no skip between W1_mag[i-k] & W_mag[i-k-1].
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
                     i += 1
-                    x += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
@@ -531,24 +535,20 @@ elif len(W1_mag) < len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
-                    j += 1
                     i += 1
-                    x += 1
                     continue
             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
+                k += 1
+                y += 1
                 if i == 0:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
                     i += 1
-                    y += 1
                     continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
                     i += 1
-                    y += 1
                     continue
                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                     W1_averages.append(np.average(W1_list))
@@ -564,9 +564,7 @@ elif len(W1_mag) < len(W2_mag):
                     W1_unc_list.append(W1_mag[i-k][2])
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
                     i += 1
-                    y += 1
                     continue
         else: #mjd dates are the same
             if i == 0:
@@ -686,6 +684,15 @@ elif len(W1_mag) < len(W2_mag):
 # print(len(W1_averages))
 # print(len(W2_averages))
 
+#get SDSS & DESI mjd:
+object_name = '152517.57+401357.6'
+table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
+object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
+SDSS_mjd = object_data.iloc[0, 7]
+DESI_mjd = object_data.iloc[0, 8]
+SDSS_mjd = SDSS_mjd - mjd_date_[0]
+DESI_mjd = DESI_mjd - mjd_date_[0]
+
 #Changing mjd date to days since start:
 mjd_date_ = [date - mjd_date_[0] for date in mjd_date_]
 
@@ -699,6 +706,10 @@ plt.figure(figsize=(18,6))
 #Averages:
 plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = r'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
 plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = r'W2 (4.6 \u03bcm)')
+#Vertical line for SDSS & DESI dates:
+plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
+plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
+
 # plt.scatter(mjd_date_W1, [tpl[0] for tpl in W1_mag], color = 'orange', label = r'W1 (3.4 \u03bcm)')
 # plt.scatter(mjd_date_W2, [tpl[0] for tpl in W2_mag], color = 'blue', label = r'W2 (4.6 \u03bcm)')
 # plt.scatter(mjd_date_colour, colour, color = 'red', label = r'Colour (W1 mag - W2 mag)')
