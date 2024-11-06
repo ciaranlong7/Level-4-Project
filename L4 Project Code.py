@@ -85,15 +85,6 @@ Mg2 = 2797
 # plt.show()
 
 #Plotting MIR data
-def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website
-    k = (k*(10**(-6))*c)/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å
-    return k*10**(-mag/2.5)
-
-W1_k = 309.540 #Janskys
-W2_k = 171.787
-W1_wl = 3.4e6 #Angstroms
-W2_wl = 4.6e6 #Angstroms
-
 #data must be filtered in terms order of mjd
 MIR_data = pd.read_csv('Object_MIR_data.csv')
 
@@ -127,8 +118,6 @@ W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
 
 #Below code analyses MIR data.
 #Only assumption required for code to work - there is never a situation where the data has only one data point for an epoch.
-colour = []
-mjd_date_colour = []
 W1_list = []
 W2_list = []
 W1_unc_list = []
@@ -300,7 +289,7 @@ if len(W1_mag) == len(W2_mag):
                     i += 1
                     p += 1
                     continue
-            else: #This happens if the data goes BB, CB, BC, AA (and ph_qual lim set to >B)
+            else: #This happens if the data goes BB, CB, BC, AA (and ph_qual lim set to >= B)
                 #All valid data points have already been stored. W1_mag[i-k] & W2_mag[i-j] corresponds to the AA data point in the example above
                 x = 0
                 y = 0
@@ -826,10 +815,6 @@ elif len(W1_mag) < len(W2_mag):
                 else:
                     print('flag') #this path shouldn't ever be used.
 
-print(f'W1 data points = {len(W1_mag)}')
-print(f'W2 data points = {len(W2_mag)}')
-print(f'Number of epochs = {len(W1_averages)}')
-
 #get SDSS & DESI mjd:
 object_name = '152517.57+401357.6'
 table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
@@ -843,24 +828,53 @@ DESI_mjd = DESI_mjd - mjd_date_[0]
 mjd_value = mjd_value - mjd_date_[0]
 mjd_date_ = [date - mjd_date_[0] for date in mjd_date_]
 
-# Plotting ideas:
-# Also plot SDSS & DESI colour
-# Also convert from mag to flux
-# Also try put SDSS & DESI spectra as an inset into one graph
+print(f'Object Name = {object_name}')
+print(f'W1 data points = {len(W1_mag)}')
+print(f'W2 data points = {len(W2_mag)}')
+print(f'Number of epochs = {len(W1_averages)}')
 
-# Plotting average W1 & W2 mags vs days since first observation
-# plt.figure(figsize=(14,6))
+# Plotting ideas:
+# Also plot SDSS & DESI colour (must know if colour is mag - mag or flux - flux first)
+# Find a way to convert from SDSS & DESI flux to mag.
+# Also try put SDSS & DESI spectra as an inset into one graph
+# Look into spectral fitting of DESI & SDSS spectra.
+
+def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
+    k = (k*(10**(-6))*c)/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å
+    return k*10**(-mag/2.5)
+
+W1_k = 309.540 #Janskys
+W2_k = 171.787
+W1_wl = 3.4e4 #Angstroms
+W2_wl = 4.6e4
+
+W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
+W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
+W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
+W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
+
+# Plotting average W1 & W2 mags (or flux) vs days since first observation
+plt.figure(figsize=(14,6))
+# Mag
 # plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
 # plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-# #Vertical line for SDSS & DESI dates:
+# Flux
+plt.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
+plt.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+#Vertical line for SDSS & DESI dates:
 # plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
 # plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
-# #Labels and Titles
-# plt.xlabel('Days since first observation')
+#Labels and Titles
+plt.xlabel('Days since first observation')
+# Mag
 # plt.ylabel('Magnitude')
-# plt.title('W1 & W2 magnitude vs Time (ph_qual > B)')
-# plt.legend(loc = 'upper left')
-# plt.show()
+# plt.title('W1 & W2 magnitude vs Time (ph_qual \u2265 B)')
+# Flux
+plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+plt.title('W1 & W2 Flux vs Time (ph_qual \u2265 B)')
+plt.legend(loc = 'upper left')
+plt.show()
+
 
 # Plotting colour (W1 mag[average] - W2 mag[average]):
 colour = [W1 - W2 for W1, W2 in zip(W1_averages, W2_averages)]
@@ -875,34 +889,35 @@ colour_uncs = [np.sqrt((W1_unc_c)**2+(W2_unc_c)**2) for W1_unc_c, W2_unc_c in zi
 # plt.title('Colour (W1 mag - W2 mag) vs Time')
 # plt.show()
 
-# Specifically looking at a particular epoch:
-# Change 'm = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
-# If I zoom in on one group, I could then see if it is the uncertainties that are causing the ~0.5mag variation in the repeat measurements.
-# (measurements are taken with a few days hence considered repeats)
-# Create a figure with two subplots (1 row, 2 columns)
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharex=False)
-# sharex = True explanation:
-# Both subplots will have the same x-axis limits and tick labels.
-# Any changes to the x-axis range (e.g., zooming or setting limits) in one subplot will automatically apply to the other subplot.
 
-data_point_W1 = list(range(1, len(one_epoch_W1) + 1))
-data_point_W2 = list(range(1, len(one_epoch_W2) + 1))
+# # Specifically looking at a particular epoch:
+# # Change 'm = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
+# # If I zoom in on one group, I could then see if it is the uncertainties that are causing the ~0.5mag variation in the repeat measurements.
+# # (measurements are taken with a few days hence considered repeats)
+# # Create a figure with two subplots (1 row, 2 columns)
+# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharex=False)
+# # sharex = True explanation:
+# # Both subplots will have the same x-axis limits and tick labels.
+# # Any changes to the x-axis range (e.g., zooming or setting limits) in one subplot will automatically apply to the other subplot.
 
-# Plot in the first subplot (ax1)
-ax1.errorbar(data_point_W1, one_epoch_W1, yerr=one_epoch_W1_unc, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-ax1.set_xlabel('Data Point')
-ax1.set_ylabel('Magnitude')
-ax1.legend(loc='upper left')
+# data_point_W1 = list(range(1, len(one_epoch_W1) + 1))
+# data_point_W2 = list(range(1, len(one_epoch_W2) + 1))
 
-# Plot in the second subplot (ax2)
-ax2.errorbar(data_point_W2, one_epoch_W2, yerr=one_epoch_W2_unc, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-ax2.set_xlabel('Data Point')
-ax2.set_ylabel('Magnitude')
-ax2.legend(loc='upper left')
+# # Plot in the first subplot (ax1)
+# ax1.errorbar(data_point_W1, one_epoch_W1, yerr=one_epoch_W1_unc, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.set_xlabel('Data Point')
+# ax1.set_ylabel('Magnitude')
+# ax1.legend(loc='upper left')
 
-fig.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
-plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
-plt.show()
+# # Plot in the second subplot (ax2)
+# ax2.errorbar(data_point_W2, one_epoch_W2, yerr=one_epoch_W2_unc, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax2.set_xlabel('Data Point')
+# ax2.set_ylabel('Magnitude')
+# ax2.legend(loc='upper left')
+
+# fig.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
+# plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
+# plt.show()
 
 
 # # Making a big figure with SDSS & DESI spectra added in
@@ -918,7 +933,7 @@ plt.show()
 # ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
 # ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
 # ax1.set_ylabel('Magnitude')
-# ax1.set_title('W1 & W2 Magnitude vs Time (ph_qual > B)')
+# ax1.set_title('W1 & W2 Magnitude vs Time (ph_qual \u2265 B)')
 # ax1.legend(loc='upper left')
 
 # # Create the two smaller plots side-by-side in the second row (ax2 and ax3)
