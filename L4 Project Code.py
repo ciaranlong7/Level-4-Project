@@ -191,11 +191,45 @@ if len(W1_mag) == len(W2_mag):
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 x += 1
                 if i == 0:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
+                    if W1_mag[i][1] - W2_mag[i][1] < 100: #checking the dps are in the same epoch. Don't have '-j' or '-k' in this path since they =0
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                    else: #Two starting dps are in a different epoch
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                        W1_averages.append(np.average(W1_list))
+                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                        W2_averages.append(np.average(W2_list))
+                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                        if W1_mag[i][1] < W2_mag[i][1]:
+                            mjd_date_.append(W1_mag[i][1])
+                            mjd_date_.append(W2_mag[i][1])
+                        else:
+                            mjd_date_.append(W2_mag[i][1])
+                            mjd_date_.append(W1_mag[i][1])
+                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
+                            one_epoch_W1 = W1_list
+                            one_epoch_W1_unc = W1_unc_list
+                            one_epoch_W2 = W2_list
+                            one_epoch_W2_unc = W2_unc_list
+                            mjd_value = W1_mag[i][1]
+                            p += 1
+                        W1_list = []
+                        W1_unc_list = []
+                        W2_list = []
+                        W2_unc_list = []
+                        j += 1
+                        i += 1
+                        p += 1
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                        continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -439,9 +473,13 @@ elif len(W1_mag) > len(W2_mag):
                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                         W2_averages.append(np.average(W2_list))
                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W1_mag[i][1])
-                        mjd_date_.append(W1_mag[i][1])
-                        if p == m:
+                        if W1_mag[i][1] < W2_mag[i][1]:
+                            mjd_date_.append(W1_mag[i][1])
+                            mjd_date_.append(W2_mag[i][1])
+                        else:
+                            mjd_date_.append(W2_mag[i][1])
+                            mjd_date_.append(W1_mag[i][1])
+                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
                             one_epoch_W1 = W1_list
                             one_epoch_W1_unc = W1_unc_list
                             one_epoch_W2 = W2_list
@@ -707,11 +745,45 @@ elif len(W1_mag) < len(W2_mag):
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 x += 1
                 if i == 0:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
+                    if W1_mag[i][1] - W2_mag[i][1] < 100: #checking the dps are in the same epoch. Don't have '-j' or '-k' in this path since they =0
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                    else: #Two starting dps are in a different epoch
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                        W1_averages.append(np.average(W1_list))
+                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                        W2_averages.append(np.average(W2_list))
+                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                        if W1_mag[i][1] < W2_mag[i][1]:
+                            mjd_date_.append(W1_mag[i][1])
+                            mjd_date_.append(W2_mag[i][1])
+                        else:
+                            mjd_date_.append(W2_mag[i][1])
+                            mjd_date_.append(W1_mag[i][1])
+                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
+                            one_epoch_W1 = W1_list
+                            one_epoch_W1_unc = W1_unc_list
+                            one_epoch_W2 = W2_list
+                            one_epoch_W2_unc = W2_unc_list
+                            mjd_value = W1_mag[i][1]
+                            p += 1
+                        W1_list = []
+                        W1_unc_list = []
+                        W2_list = []
+                        W2_unc_list = []
+                        j += 1
+                        i += 1
+                        p += 1
+                        W1_list.append(W1_mag[i][0])
+                        W1_unc_list.append(W1_mag[i][2])
+                        W2_list.append(W2_mag[i][0])
+                        W2_unc_list.append(W2_mag[i][2])
+                        continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
