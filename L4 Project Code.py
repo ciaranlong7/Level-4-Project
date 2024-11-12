@@ -18,19 +18,21 @@ table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
 object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
 SDSS_mjd = object_data.iloc[0, 7]
 DESI_mjd = object_data.iloc[0, 8]
-SDSS_file = f'spec-{plate}-{SDSS_mjd:.0f}-{fiberid}.fits'
+# SDSS_file = f'spec-{plate}-{SDSS_mjd:.0f}-{fiberid}.fits'
+SDSS_file = 'spec-8521-58175-0279.fits'
 DESI_file = f'spectrum_desi_{object_name}.csv'
 
 #Open the SDSS file
-with fits.open("spec-8521-58175-0279.fits") as hdul:
-    subset = hdul[1]       
+SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+with fits.open(SDSS_file_path) as hdul:
+    subset = hdul[1]
 
     sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
     sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
 #Open the DESI file
-DESI_file_path = f'clagn_spectra/clagn_spectra/{DESI_file}'
+DESI_file_path = f'clagn_spectra/{DESI_file}'
 DESI_spec = pd.read_csv(DESI_file_path)
 desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
 desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
