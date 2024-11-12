@@ -12,11 +12,19 @@ quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
+#Code Breaks for objects B & C. Object B because so little data. Object C I must investigate.
+# Could be related to my comment - 'There is a mistake in my resetting. Reset midway through an epoch sometimes.'
+
 #get SDSS & DESI filenames:
+object_name = '152517.57+401357.6' #Object A
+# object_name = '141923.44-030458.7' #Object B
+object_name = '115403.00+003154.0' #Object C
+SDSS_file = 'spec-8521-58175-0279.fits' #Object A
+# SDSS_file = 'spec-4032-55333-0404.fits' #Object B
+# SDSS_file = 'spec-0284-51943-0483.fits' #Object C
+MIR_SNR = 'B' #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 plate = 8521
 fiberid = '0279'
-# object_name = '152517.57+401357.6' #Object A
-object_name = '141923.44-030458.7' #Object B
 table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
 object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
 object_RA = object_data.iloc[0, 1]
@@ -24,8 +32,6 @@ object_DEC = object_data.iloc[0, 2]
 SDSS_mjd = object_data.iloc[0, 7]
 DESI_mjd = object_data.iloc[0, 8]
 # SDSS_file = f'spec-{plate}-{SDSS_mjd:.0f}-{fiberid}.fits'
-# SDSS_file = 'spec-8521-58175-0279.fits' #Object A
-SDSS_file = 'spec-4032-55333-0404.fits' #Object B
 DESI_file = f'spectrum_desi_{object_name}.csv'
 
 #for now - when changing objects, must manually change:
@@ -124,7 +130,7 @@ DESI_max = max(desi_lamb)
 
 #Plotting MIR data
 #data must be filtered in terms order of mjd - oldest to newest
-MIR_data = pd.read_csv(f'MIR_data_{object_name}.csv')
+MIR_data = pd.read_csv(f'MIR_data/MIR_data_{object_name}.csv')
 
 # coord = SkyCoord(object_RA, object_DEC, unit='deg', frame='icrs') #This works.
 # WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_psd", spatial="Cone", radius=2 * u.arcsec)
@@ -136,15 +142,15 @@ MIR_data = pd.read_csv(f'MIR_data_{object_name}.csv')
 filtered_rows = MIR_data[MIR_data.iloc[:, 15] == 0]
 
 #Filtering for good SNR
-# SNR > C
-filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])]
-filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])]
-# SNR > B
-# filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])]
-# filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])]
-# SNR > A
-# filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX'])]
-# filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA'])]
+if MIR_SNR == 'C':
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])]
+if MIR_SNR == 'B':
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])]
+if MIR_SNR == 'A':
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA'])]
 
 mjd_date_W1 = filtered_rows_W1.iloc[:, 18]
 mjd_date_W1 = mjd_date_W1.tolist()
@@ -176,9 +182,6 @@ one_epoch_W1_unc = []
 one_epoch_W2 = []
 one_epoch_W2_unc = []
 m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
-print(W1_mag)
-print('Break')
-print(W2_mag)
 if len(W1_mag) == len(W2_mag):
     i = 0
     j = 0
@@ -191,45 +194,11 @@ if len(W1_mag) == len(W2_mag):
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 x += 1
                 if i == 0:
-                    if W1_mag[i][1] - W2_mag[i][1] < 100: #checking the dps are in the same epoch. Don't have '-j' or '-k' in this path since they =0
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                    else: #Two starting dps are in a different epoch
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        if W1_mag[i][1] < W2_mag[i][1]:
-                            mjd_date_.append(W1_mag[i][1])
-                            mjd_date_.append(W2_mag[i][1])
-                        else:
-                            mjd_date_.append(W2_mag[i][1])
-                            mjd_date_.append(W1_mag[i][1])
-                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        j += 1
-                        i += 1
-                        p += 1
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        continue
+                    W1_list.append(W1_mag[i-k][0])
+                    W1_unc_list.append(W1_mag[i-k][2])
+                    j += 1
+                    i += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -452,52 +421,15 @@ elif len(W1_mag) > len(W2_mag):
     y = 0 #skip flag for W1
     p = 0 #for grabbing only one epoch's data
     while i-k+1 < len(W1_mag):
-        print(f'iteration = {i}')
-        print(W1_list)
-        print(W2_list)
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]:
                 x += 1
                 if i == 0:
-                    if W1_mag[i][1] - W2_mag[i][1] < 100: #checking the dps are in the same epoch. Don't have '-j' or '-k' in this path since they =0
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                    else: #Two starting dps are in a different epoch
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        if W1_mag[i][1] < W2_mag[i][1]:
-                            mjd_date_.append(W1_mag[i][1])
-                            mjd_date_.append(W2_mag[i][1])
-                        else:
-                            mjd_date_.append(W2_mag[i][1])
-                            mjd_date_.append(W1_mag[i][1])
-                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        j += 1
-                        i += 1
-                        p += 1
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        continue
+                    W1_list.append(W1_mag[i-k][0])
+                    W1_unc_list.append(W1_mag[i-k][2])
+                    j += 1
+                    i += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -509,10 +441,7 @@ elif len(W1_mag) > len(W2_mag):
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    print(f'W2 skip, appending date W1_mag[{i-1-k}]')
                     mjd_date_.append(W1_mag[i-1-k][1]) #i-1 because want to select the previous epoch's date
-                    print(W1_list)
-                    print(W2_list)
                     if p == m:
                         one_epoch_W1 = W1_list
                         one_epoch_W1_unc = W1_unc_list
@@ -551,16 +480,12 @@ elif len(W1_mag) > len(W2_mag):
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    print(f'W1 skip, appending date W2_mag[{i-1-j}]')
                     mjd_date_.append(W2_mag[i-1-j][1]) 
-                    print(W1_list)
-                    print(W2_list)
                     if p == m:
                         one_epoch_W1 = W1_list
                         one_epoch_W1_unc = W1_unc_list
                         one_epoch_W2 = W2_list
                         one_epoch_W2_unc = W2_unc_list
-                        print(f'i-1-j = {i-1-j}')
                         mjd_value = W2_mag[i-1-j][1]
                         p += 1
                     W1_list = []
@@ -597,10 +522,7 @@ elif len(W1_mag) > len(W2_mag):
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    print(f'mjd dates are same, also confirmed same epoch by checking something, appending date W2_mag[{i-1-j}]')
                     mjd_date_.append(W2_mag[i-1-j][1])
-                    print(W1_list)
-                    print(W2_list)
                     if p == m:
                         one_epoch_W1 = W1_list
                         one_epoch_W1_unc = W1_unc_list
@@ -633,10 +555,7 @@ elif len(W1_mag) > len(W2_mag):
                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                     W2_averages.append(np.average(W2_list))
                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    print(f'mjd dates are same, also confirmed same epoch by checking something, appending date W1_mag[{i-1-k}]')
                     mjd_date_.append(W1_mag[i-1-k][1])
-                    print(W1_list)
-                    print(W2_list)
                     if p == m:
                         one_epoch_W1 = W1_list
                         one_epoch_W1_unc = W1_unc_list
@@ -671,10 +590,7 @@ elif len(W1_mag) > len(W2_mag):
                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                         W2_averages.append(np.average(W2_list))
                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        print(f'mistake in my resetting, appending date W1_mag[{i-1-k}]')
                         mjd_date_.append(W1_mag[i-1-k][1])
-                        print(W1_list)
-                        print(W2_list)
                         if p == m:
                             one_epoch_W1 = W1_list
                             one_epoch_W1_unc = W1_unc_list
@@ -706,10 +622,7 @@ elif len(W1_mag) > len(W2_mag):
                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
                         W2_averages.append(np.average(W2_list))
                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        print(f'mistake in my resetting, appending date W2_mag[{i-1-k}]')
                         mjd_date_.append(W2_mag[i-1-j][1])
-                        print(W1_list)
-                        print(W2_list)
                         if p == m:
                             one_epoch_W1 = W1_list
                             one_epoch_W1_unc = W1_unc_list
@@ -738,52 +651,15 @@ elif len(W1_mag) < len(W2_mag):
     y = 0 #skip flag for W1
     p = 0
     while i-j+1 < len(W2_mag):
-        # print(f'j = {j}')
-        # print(f'i = {i}')
-        # print(f'k = {k}')
         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
                 x += 1
                 if i == 0:
-                    if W1_mag[i][1] - W2_mag[i][1] < 100: #checking the dps are in the same epoch. Don't have '-j' or '-k' in this path since they =0
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                    else: #Two starting dps are in a different epoch
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        if W1_mag[i][1] < W2_mag[i][1]:
-                            mjd_date_.append(W1_mag[i][1])
-                            mjd_date_.append(W2_mag[i][1])
-                        else:
-                            mjd_date_.append(W2_mag[i][1])
-                            mjd_date_.append(W1_mag[i][1])
-                        if p == m: #No point really fixing this; this is a situation where epoch 1 has got 1 dp in it.
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        j += 1
-                        i += 1
-                        p += 1
-                        W1_list.append(W1_mag[i][0])
-                        W1_unc_list.append(W1_mag[i][2])
-                        W2_list.append(W2_mag[i][0])
-                        W2_unc_list.append(W2_mag[i][2])
-                        continue
+                    W1_list.append(W1_mag[i-k][0])
+                    W1_unc_list.append(W1_mag[i-k][2])
+                    j += 1
+                    i += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -1155,60 +1031,60 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 
 
 # Making a big figure with flux & SDSS, DESI spectra added in
-# fig = plt.figure(figsize=(12, 7)) # (width, height)
-# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+fig = plt.figure(figsize=(12, 7)) # (width, height)
+gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# # Top plot spanning two columns and three rows (ax1)
-# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-# ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-# ax1.set_xlabel('Days since first observation')
-# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
-# ax1.legend(loc='best')
+# Top plot spanning two columns and three rows (ax1)
+ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+ax1.set_xlabel('Days since first observation')
+ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
+ax1.legend(loc='best')
 
-# # Bottom left plot spanning 2 rows and 1 column (ax2)
-# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax2.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
-# ax2.set_xlabel('Wavelength / Å')
-# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-# ax2.legend(loc='upper right')
+# Bottom left plot spanning 2 rows and 1 column (ax2)
+ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C4 <= SDSS_max:
+    ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+if SDSS_min <= C3 <= SDSS_max:
+    ax2.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
+ax2.set_xlabel('Wavelength / Å')
+ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+ax2.legend(loc='upper right')
 
-# # Bottom right plot spanning 2 rows and 1 column (ax3)
-# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax3.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
-# ax3.set_xlabel('Wavelength / Å')
-# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-# ax3.legend(loc='upper right')
+# Bottom right plot spanning 2 rows and 1 column (ax3)
+ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C4 <= SDSS_max:
+    ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+if SDSS_min <= C3 <= SDSS_max:
+    ax3.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
+ax3.set_xlabel('Wavelength / Å')
+ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+ax3.legend(loc='upper right')
 
-# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-# #top and bottom adjust the vertical space on the top and bottom of the figure.
-# #left and right adjust the horizontal space on the left and right sides.
-# #hspace and wspace adjust the spacing between rows and columns, respectively.
-# plt.show()
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#top and bottom adjust the vertical space on the top and bottom of the figure.
+#left and right adjust the horizontal space on the left and right sides.
+#hspace and wspace adjust the spacing between rows and columns, respectively.
+plt.show()
