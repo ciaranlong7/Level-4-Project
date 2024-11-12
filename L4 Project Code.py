@@ -10,6 +10,17 @@ quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
+#get SDSS & DESI filenames:
+plate = 8521
+fiberid = '0279'
+object_name = '152517.57+401357.6'
+table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
+object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
+SDSS_mjd = object_data.iloc[0, 7]
+DESI_mjd = object_data.iloc[0, 8]
+SDSS_file = f'spec-{plate}-{SDSS_mjd:.0f}-{fiberid}.fits'
+DESI_file = f'spectrum_desi_{object_name}.csv'
+
 #Open the SDSS file
 with fits.open("spec-8521-58175-0279.fits") as hdul:
     subset = hdul[1]       
@@ -19,12 +30,13 @@ with fits.open("spec-8521-58175-0279.fits") as hdul:
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
 #Open the DESI file
-DESI_spec = pd.read_csv('spectrum_desi_152517.57+401357.6.csv')
+DESI_file_path = f'clagn_spectra/clagn_spectra/{DESI_file}'
+DESI_spec = pd.read_csv(DESI_file_path)
 desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
 desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
 
 # Correcting for redshift.
-z = 0.385
+z = object_data.iloc[0, 3]
 sdss_lamb = sdss_lamb/(1+z)
 desi_lamb = desi_lamb/(1+z)
 
@@ -74,7 +86,7 @@ Mg2 = 2797
 # #Adding in positions of emission lines
 # plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # plt.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# plt.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
+# plt.axvline(Mg2, linewidth=2, color='red', label = 'Mg II')
 # #Axis labels
 # plt.xlabel('Wavelength / Å')
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
@@ -816,13 +828,6 @@ elif len(W1_mag) < len(W2_mag):
                 else:
                     print('flag') #this path shouldn't ever be used.
 
-#get SDSS & DESI mjd:
-object_name = '152517.57+401357.6'
-table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
-object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
-SDSS_mjd = object_data.iloc[0, 7]
-DESI_mjd = object_data.iloc[0, 8]
-
 #Changing mjd date to days since start:
 SDSS_mjd = SDSS_mjd - mjd_date_[0]
 DESI_mjd = DESI_mjd - mjd_date_[0]
@@ -837,11 +842,10 @@ print(f'Number of epochs = {len(W1_averages)}')
 # Plotting ideas:
 # Also plot SDSS & DESI colour (must know if colour is mag - mag or flux - flux first)
 # Find a way to convert from SDSS & DESI flux to mag.
-# Also try put SDSS & DESI spectra as an inset into one graph
 # Look into spectral fitting of DESI & SDSS spectra.
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
-    k = (k*(10**(-6))*c)/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å
+    k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
     return k*10**(-mag/2.5)
 
 W1_k = 309.540 #Janskys
@@ -877,10 +881,10 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # plt.show()
 
 
-# Plotting colour (W1 mag[average] - W2 mag[average]):
-colour = [W1 - W2 for W1, W2 in zip(W1_averages, W2_averages)]
-colour_uncs = [np.sqrt((W1_unc_c)**2+(W2_unc_c)**2) for W1_unc_c, W2_unc_c in zip(W1_av_uncs, W2_av_uncs)]
-# Uncertainty propagation taken from Hughes & Hase; Z = A - B formula on back cover.
+# # Plotting colour (W1 mag[average] - W2 mag[average]):
+# colour = [W1 - W2 for W1, W2 in zip(W1_averages, W2_averages)]
+# colour_uncs = [np.sqrt((W1_unc_c)**2+(W2_unc_c)**2) for W1_unc_c, W2_unc_c in zip(W1_av_uncs, W2_av_uncs)]
+# # Uncertainty propagation taken from Hughes & Hase; Z = A - B formula on back cover.
 
 # plt.figure(figsize=(14,6))
 # plt.errorbar(mjd_date_, colour, yerr=colour_uncs, fmt='o', color = 'red', capsize=5)
@@ -944,7 +948,7 @@ colour_uncs = [np.sqrt((W1_unc_c)**2+(W2_unc_c)**2) for W1_unc_c, W2_unc_c in zi
 # ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'forestgreen')
 # ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# ax2.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
+# ax2.axvline(Mg2, linewidth=2, color='red', label = 'Mg II')
 # ax2.set_xlabel('Wavelength / Å')
 # ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # # ax2.set_ylim(common_ymin, common_ymax)
@@ -956,7 +960,7 @@ colour_uncs = [np.sqrt((W1_unc_c)**2+(W2_unc_c)**2) for W1_unc_c, W2_unc_c in zi
 # ax3.plot(desi_lamb, Gaus_smoothed_DESI, color = 'midnightblue')
 # ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# ax3.axvline(Mg2, linewidth=2, color='red', label = 'Mg ii')
+# ax3.axvline(Mg2, linewidth=2, color='red', label = 'Mg II')
 # ax3.set_xlabel('Wavelength / Å')
 # ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # # ax3.set_ylim(common_ymin, common_ymax)
@@ -978,7 +982,7 @@ ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='S
 ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
 ax1.set_xlabel('Days since first observation')
 ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax1.set_title('W1 & W2 Flux vs Time (ph_qual \u2265 B)')
+ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
 ax1.legend(loc='best')
 
 # Bottom left plot spanning 2 rows and 1 column (ax2)
@@ -987,7 +991,7 @@ ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
 ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
 ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label=u'H\u03B1')
 ax2.axvline(H_beta, linewidth=2, color='green', label=u'H\u03B2')
-ax2.axvline(Mg2, linewidth=2, color='red', label='Mg ii')
+ax2.axvline(Mg2, linewidth=2, color='red', label='Mg II')
 ax2.set_xlabel('Wavelength / Å')
 ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
@@ -999,7 +1003,7 @@ ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
 ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
 ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label=u'H\u03B1')
 ax3.axvline(H_beta, linewidth=2, color='green', label=u'H\u03B2')
-ax3.axvline(Mg2, linewidth=2, color='red', label='Mg ii')
+ax3.axvline(Mg2, linewidth=2, color='red', label='Mg II')
 ax3.set_xlabel('Wavelength / Å')
 ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
@@ -1010,5 +1014,3 @@ fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wsp
 #left and right adjust the horizontal space on the left and right sides.
 #hspace and wspace adjust the spacing between rows and columns, respectively.
 plt.show()
-
-#Need t sort flux units (10^-28 too low) then will save plot.
