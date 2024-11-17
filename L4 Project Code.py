@@ -12,17 +12,24 @@ quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
-#Code Breaks for objects B & C. Object B because so little data. Object C I must investigate.
-# Could be related to my comment - 'There is a mistake in my resetting. Reset midway through an epoch sometimes.'
+# Code Breaks for objects B. Object B because so little data.
 
 #get SDSS & DESI filenames:
-object_name = '152517.57+401357.6' #Object A
+# object_name = '152517.57+401357.6' #Object A
 # object_name = '141923.44-030458.7' #Object B
-# object_name = '115403.00+003154.0' #Object C
-SDSS_file = 'spec-8521-58175-0279.fits' #Object A
+object_name = '115403.00+003154.0' #Object C
+# SDSS_file = 'spec-8521-58175-0279.fits' #Object A
 # SDSS_file = 'spec-4032-55333-0404.fits' #Object B
-# SDSS_file = 'spec-0284-51943-0483.fits' #Object C
-MIR_SNR = 'B' #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
+SDSS_file = 'spec-0284-51943-0483.fits' #Object C
+Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
+if Min_SNR == 10: #Select Min_SNR on line above.
+    MIR_SNR = 'A'
+elif Min_SNR == 3:
+    MIR_SNR = 'B'
+elif Min_SNR == 2:
+    MIR_SNR = 'C'
+else:
+    print('select a valid min SNR - 10, 3 or 2.')
 plate = 8521
 fiberid = '0279'
 table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
@@ -86,11 +93,15 @@ gaussian_kernel = Gaussian1DKernel(stddev=3)
 Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
 Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
 
+#BELs
 H_alpha = 6562.7
 H_beta = 4861.35
 Mg2 = 2797
 C4 = 1548
-C3 = 977.030
+C3_ = 1908.734
+#NEL
+_O3_ = 5006.843 #underscores indicate square brackets
+#Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
 SDSS_min = min(sdss_lamb)
 SDSS_max = max(sdss_lamb)
 DESI_min = min(desi_lamb)
@@ -116,8 +127,10 @@ DESI_max = max(desi_lamb)
 #     plt.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
 #     plt.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     plt.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= C3_ <= SDSS_max:
+#     plt.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     plt.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
 # #Axis labels
 # plt.xlabel('Wavelength / Å')
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
@@ -128,18 +141,35 @@ DESI_max = max(desi_lamb)
 # plt.legend(loc = 'upper right')
 # plt.show()
 
+
+#Plotting Optical data:
+# Optical_data = pd.read_csv('PTF_optical_mag_152517.57+401357.6.csv')
+
+# mjd_date_optical = Optical_data.iloc[:, 0]
+
 #Plotting MIR data
 #data must be filtered in terms order of mjd - oldest to newest
 MIR_data = pd.read_csv(f'MIR_data/MIR_data_{object_name}.csv')
+#Normal AGN data
+MIR_data_normal = pd.read_csv('MIR_data/MIR_data_WISEA J101536.17+221048.9.csv')
 
+# Trying to automate querying the NEOWISE database
 # coord = SkyCoord(object_RA, object_DEC, unit='deg', frame='icrs') #This works.
 # WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_psd", spatial="Cone", radius=2 * u.arcsec)
-#Problem is the NEOWISE-R Single Exposure (L1b) Source Table isn't available. The only WISE catalog available is - AllWISE Source Catalog.
+# Problem is the NEOWISE-R Single Exposure (L1b) Source Table isn't available. The only WISE catalog available is - AllWISE Source Catalog.
 # printIrsa.list_catalogs())
 # MIR_data = WISE_query.to_pandas()
 
-# Filter the DataFrame for rows where cc_flags is 0
-filtered_rows = MIR_data[MIR_data.iloc[:, 15] == 0]
+# I should filter for when cc_flags is g000 or 0g00 as well.
+
+# Convert column 16 to numeric, setting errors='coerce' to turn non-numeric entries into NaN. This deals with the cc_flags column sometimes being a string
+MIR_data.iloc[:, 15] = pd.to_numeric(MIR_data.iloc[:, 15], errors='coerce')
+filtered_rows = MIR_data[(MIR_data.iloc[:, 15] == 0) & (MIR_data.iloc[:, 17] > 5)] #checking for rows where cc_flags is 0 & qual_frame is > 5.
+#"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
+# The qi_fact column (not included in my tables) seems to = qual_frame/10.
+#Normal AGN:
+# MIR_data_normal.iloc[:, 15] = pd.to_numeric(MIR_data_normal.iloc[:, 15], errors='coerce')
+# filtered_rows = MIR_data_normal[(MIR_data_normal.iloc[:, 15] == 0) & (MIR_data_normal.iloc[:, 17] > 5)]
 
 #Filtering for good SNR
 if MIR_SNR == 'C':
@@ -167,7 +197,9 @@ W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
 
 #Below code analyses MIR data.
-#Only assumption required for code to work - there is never a situation where the data has only one data point for an epoch.
+#Two assumptions required for code to work:
+#1. There is never a situation where the data has only one data point for an epoch.
+#2. The data is in order of oldest mjd to most recent.
 W1_list = []
 W2_list = []
 W1_unc_list = []
@@ -574,7 +606,7 @@ elif len(W1_mag) > len(W2_mag):
                     i += 1
                     p += 1
                     continue
-            else: # There is a mistake in my resetting. Reset midway through an epoch sometimes.
+            else:
                 x = 0
                 y = 0
                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in this example; AA, Bc, UX, AA)
@@ -886,7 +918,6 @@ print(f'W2 data points = {len(W2_mag)}')
 print(f'Number of epochs = {len(W1_averages)}')
 
 # Plotting ideas:
-# Also plot SDSS & DESI colour (must know if colour is mag - mag or flux - flux first)
 # Find a way to convert from SDSS & DESI flux to mag.
 # Look into spectral fitting of DESI & SDSS spectra.
 
@@ -904,25 +935,25 @@ W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
-# Plotting average W1 & W2 mags (or flux) vs days since first observation
+# # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(14,6))
-# Mag
-# plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
-# plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-# Flux
+# # # Mag
+# # plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
+# # plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+# # Flux
 # plt.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
 # plt.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-#Vertical line for SDSS & DESI dates:
-# plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
-# plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
-#Labels and Titles
+# # # Vertical line for SDSS & DESI dates:
+# # plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
+# # plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
+# # Labels and Titles
 # plt.xlabel('Days since first observation')
-# Mag
-# plt.ylabel('Magnitude')
-# plt.title('W1 & W2 magnitude vs Time (ph_qual \u2265 B)')
-# Flux
+# # # Mag
+# # plt.ylabel('Magnitude')
+# # plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
+# # Flux
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# plt.title('W1 & W2 Flux vs Time (ph_qual \u2265 B)')
+# plt.title(f'W1 & W2 Flux vs Time (101536.17+221048.9)')
 # plt.legend(loc = 'upper left')
 # plt.show()
 
@@ -973,31 +1004,31 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # plt.show()
 
 
-#Plotting a histogram of a single epoch
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7))  # Creates a figure with 1 row and 2 columns
+# #Plotting a histogram of a single epoch
+# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7))  # Creates a figure with 1 row and 2 columns
 
-bins_W1 = np.arange(min(one_epoch_W1), max(one_epoch_W1) + 0.05, 0.05)
-ax1.hist(one_epoch_W1, bins=bins_W1, color='orange', edgecolor='black')
-ax1.set_title('W1')
-ax1.set_xlabel('Magnitude')
-ax1.set_ylabel('Frequency')
+# bins_W1 = np.arange(min(one_epoch_W1), max(one_epoch_W1) + 0.05, 0.05)
+# ax1.hist(one_epoch_W1, bins=bins_W1, color='orange', edgecolor='black')
+# ax1.set_title('W1')
+# ax1.set_xlabel('Magnitude')
+# ax1.set_ylabel('Frequency')
 
-bins_W2 = np.arange(min(one_epoch_W2), max(one_epoch_W2) + 0.05, 0.05)
-ax2.hist(one_epoch_W2, bins=bins_W2, color='blue', edgecolor='black')
-ax2.set_title('W2')
-ax2.set_xlabel('Magnitude')
-ax2.set_ylabel('Frequency')
+# bins_W2 = np.arange(min(one_epoch_W2), max(one_epoch_W2) + 0.05, 0.05)
+# ax2.hist(one_epoch_W2, bins=bins_W2, color='blue', edgecolor='black')
+# ax2.set_title('W2')
+# ax2.set_xlabel('Magnitude')
+# ax2.set_ylabel('Frequency')
 
-plt.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
-plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
-plt.show()
+# plt.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
+# plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
+# plt.show()
 
 
 # # Making a big figure with averages & SDSS, DESI spectra added in
 # fig = plt.figure(figsize=(18, 12))
 
-# common_ymin = -10
-# common_ymax = 20
+# # common_ymin = -10
+# # common_ymax = 20
 
 # # Original big plot in the first row, spanning both columns (ax1)
 # ax1 = fig.add_subplot(2, 1, 1)  # This will span the entire top row
@@ -1007,7 +1038,7 @@ plt.show()
 # ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
 # ax1.set_xlabel('Days since first observation')
 # ax1.set_ylabel('Magnitude')
-# ax1.set_title('W1 & W2 Magnitude vs Time (ph_qual \u2265 B)')
+# ax1.set_title(f'W1 & W2 Magnitude vs Time (SNR \u2265 {Min_SNR})')
 # ax1.legend(loc='upper left')
 
 # # Create the two smaller plots side-by-side in the second row (ax2 and ax3)
@@ -1022,8 +1053,10 @@ plt.show()
 #     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
 #     ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax2.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= C3_ <= SDSS_max:
+#     ax2.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
 # ax2.set_xlabel('Wavelength / Å')
 # ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # # ax2.set_ylim(common_ymin, common_ymax)
@@ -1041,8 +1074,10 @@ plt.show()
 #     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
 #     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax3.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= C3_ <= SDSS_max:
+#     ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
 # ax3.set_xlabel('Wavelength / Å')
 # ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # # ax3.set_ylim(common_ymin, common_ymax)
@@ -1052,61 +1087,65 @@ plt.show()
 # plt.show()
 
 
-# # Making a big figure with flux & SDSS, DESI spectra added in
-# fig = plt.figure(figsize=(12, 7)) # (width, height)
-# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+# Making a big figure with flux & SDSS, DESI spectra added in
+fig = plt.figure(figsize=(12, 7)) # (width, height)
+gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# # Top plot spanning two columns and three rows (ax1)
-# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-# ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-# ax1.set_xlabel('Days since first observation')
-# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
-# ax1.legend(loc='best')
+# Top plot spanning two columns and three rows (ax1)
+ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+ax1.set_xlabel('Days since first observation')
+ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
+ax1.legend(loc='upper left')
 
-# # Bottom left plot spanning 2 rows and 1 column (ax2)
-# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax2.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
-# ax2.set_xlabel('Wavelength / Å')
-# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-# ax2.legend(loc='upper right')
+# Bottom left plot spanning 2 rows and 1 column (ax2)
+ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C4 <= SDSS_max:
+    ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+if SDSS_min <= C3_ <= SDSS_max:
+    ax2.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+ax2.set_xlabel('Wavelength / Å')
+ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+ax2.legend(loc='upper right')
 
-# # Bottom right plot spanning 2 rows and 1 column (ax3)
-# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3 <= SDSS_max:
-#     ax3.axvline(C3, linewidth=2, color='darkviolet', label = 'C III]')
-# ax3.set_xlabel('Wavelength / Å')
-# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-# ax3.legend(loc='upper right')
+# Bottom right plot spanning 2 rows and 1 column (ax3)
+ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C4 <= SDSS_max:
+    ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+if SDSS_min <= C3_ <= SDSS_max:
+    ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+ax3.set_xlabel('Wavelength / Å')
+ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+ax3.legend(loc='upper right')
 
-# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-# #top and bottom adjust the vertical space on the top and bottom of the figure.
-# #left and right adjust the horizontal space on the left and right sides.
-# #hspace and wspace adjust the spacing between rows and columns, respectively.
-# plt.show()
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#top and bottom adjust the vertical space on the top and bottom of the figure.
+#left and right adjust the horizontal space on the left and right sides.
+#hspace and wspace adjust the spacing between rows and columns, respectively.
+plt.show()
