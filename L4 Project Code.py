@@ -12,7 +12,7 @@ quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
-# Code Breaks for objects B. Object B because so little data.
+# Code Breaks for object B because so little data.
 
 #get SDSS & DESI filenames:
 # object_name = '152517.57+401357.6' #Object A
@@ -20,7 +20,7 @@ c = 299792458
 object_name = '115403.00+003154.0' #Object C
 # SDSS_file = 'spec-8521-58175-0279.fits' #Object A
 # SDSS_file = 'spec-4032-55333-0404.fits' #Object B
-SDSS_file = 'spec-0284-51943-0483.fits' #Object C
+# SDSS_file = 'spec-0284-51943-0483.fits' #Object C
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
     MIR_SNR = 'A'
@@ -30,25 +30,27 @@ elif Min_SNR == 2:
     MIR_SNR = 'C'
 else:
     print('select a valid min SNR - 10, 3 or 2.')
-plate = 8521
-fiberid = '0279'
-table_4_GUO = pd.read_csv('guo23_table4_clagn.csv')
-object_data = table_4_GUO[table_4_GUO.iloc[:, 0] == object_name]
-object_RA = object_data.iloc[0, 1]
-object_DEC = object_data.iloc[0, 2]
-SDSS_mjd = object_data.iloc[0, 7]
-DESI_mjd = object_data.iloc[0, 8]
-# SDSS_file = f'spec-{plate}-{SDSS_mjd:.0f}-{fiberid}.fits'
+parent_sample = pd.read_csv('guo23_parent_sample.csv')
+object_data = parent_sample[parent_sample.iloc[:, 4] == object_name]
+SDSS_RA = object_data.iloc[0, 1]
+SDSS_DEC = object_data.iloc[0, 2]
+SDSS_plate_number = object_data.iloc[0, 5]
+SDSS_plate = f'{object_data.iloc[0, 5]:04}'
+SDSS_fiberid_number = object_data.iloc[0, 7]
+SDSS_fiberid = f"{SDSS_fiberid_number:04}"
+SDSS_mjd = object_data.iloc[0, 6]
+DESI_mjd = object_data.iloc[0, 12]
+SDSS_file = f'spec-{SDSS_plate}-{SDSS_mjd:.0f}-{SDSS_fiberid}.fits'
 DESI_file = f'spectrum_desi_{object_name}.csv'
 
 #for now - when changing objects, must manually change:
-#SDSS filename
 #Create the new MIR file & name appropiately - 'MIR_data_{object_name}' 
 print('MIR Search (RA ±DEC):')
-print(f'{object_RA} {object_DEC:+}')
+print(f'{SDSS_RA} {SDSS_DEC:+}')
 
 #Open the SDSS file
 SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+# SDSS_file_path = 'spec-1678-53433-0425.fits' #NGC 1068 spectra
 with fits.open(SDSS_file_path) as hdul:
     subset = hdul[1]
 
@@ -63,9 +65,10 @@ desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (heade
 desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
 
 # Correcting for redshift.
-z = object_data.iloc[0, 3]
-sdss_lamb = sdss_lamb/(1+z)
-desi_lamb = desi_lamb/(1+z)
+SDSS_z = object_data.iloc[0, 3]
+DESI_z = object_data.iloc[0, 10]
+sdss_lamb = sdss_lamb/(1+SDSS_z)
+desi_lamb = desi_lamb/(1+DESI_z)
 
 #Calculate rolling average manually
 def rolling_average(arr, window_size):
@@ -122,7 +125,7 @@ DESI_max = max(desi_lamb)
 # if SDSS_min <= H_alpha <= SDSS_max:
 #     plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # if SDSS_min <= H_beta <= SDSS_max:
-#     plt.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+#     plt.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
 # if SDSS_min <= Mg2 <= SDSS_max:
 #     plt.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
@@ -131,7 +134,7 @@ DESI_max = max(desi_lamb)
 #     plt.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
 # if SDSS_min <= _O3_ <= SDSS_max:
 #     plt.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# #Axis labels
+# #Axes labels
 # plt.xlabel('Wavelength / Å')
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 # #Two different titles (for Gaussian/Manual)
@@ -149,49 +152,52 @@ DESI_max = max(desi_lamb)
 
 #Plotting MIR data
 #data must be filtered in terms order of mjd - oldest to newest
-MIR_data = pd.read_csv(f'MIR_data/MIR_data_{object_name}.csv')
-#Normal AGN data
-MIR_data_normal = pd.read_csv('MIR_data/MIR_data_WISEA J101536.17+221048.9.csv')
 
-# Trying to automate querying the NEOWISE database
-# coord = SkyCoord(object_RA, object_DEC, unit='deg', frame='icrs') #This works.
-# WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_psd", spatial="Cone", radius=2 * u.arcsec)
-# Problem is the NEOWISE-R Single Exposure (L1b) Source Table isn't available. The only WISE catalog available is - AllWISE Source Catalog.
-# printIrsa.list_catalogs())
-# MIR_data = WISE_query.to_pandas()
-
-# I should filter for when cc_flags is g000 or 0g00 as well.
-
-# Convert column 16 to numeric, setting errors='coerce' to turn non-numeric entries into NaN. This deals with the cc_flags column sometimes being a string
-MIR_data.iloc[:, 15] = pd.to_numeric(MIR_data.iloc[:, 15], errors='coerce')
-filtered_rows = MIR_data[(MIR_data.iloc[:, 15] == 0) & (MIR_data.iloc[:, 17] > 5)] #checking for rows where cc_flags is 0 & qual_frame is > 5.
-#"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
-# The qi_fact column (not included in my tables) seems to = qual_frame/10.
-#Normal AGN:
+# Normal AGN MIR data
+# MIR_data_normal = pd.read_csv('MIR_data/MIR_data_NGC 1068.csv')
 # MIR_data_normal.iloc[:, 15] = pd.to_numeric(MIR_data_normal.iloc[:, 15], errors='coerce')
 # filtered_rows = MIR_data_normal[(MIR_data_normal.iloc[:, 15] == 0) & (MIR_data_normal.iloc[:, 17] > 5)]
 
+# Automatically querying the NEOWISE database
+coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
+WISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
+MIR_data = WISE_query.to_pandas()
+
+#checking out indexes
+# for idx, col in enumerate(MIR_data.columns):
+#     print(f"Index {idx}: {col}")
+
+MIR_data = MIR_data.sort_values(by=MIR_data.columns[42]) #sort in ascending mjd
+
+# I should filter for when cc_flags is g000 or 0g00 as well.
+
+# Convert cc_flags column to numeric, setting errors='coerce' to turn non-numeric entries into NaN. This deals with the cc_flags column sometimes being a string
+MIR_data.iloc[:, 32] = pd.to_numeric(MIR_data.iloc[:, 32], errors='coerce')
+filtered_rows = MIR_data[(MIR_data.iloc[:, 32] == 0) & (MIR_data.iloc[:, 36] > 5)] #checking for rows where cc_flags is 0 & qual_frame is > 5.
+#"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
+# The qi_fact column (not included in my tables) seems to = qual_frame/10.
+
 #Filtering for good SNR
 if MIR_SNR == 'C':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])]
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])]
 if MIR_SNR == 'B':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])]
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])]
 if MIR_SNR == 'A':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'AB', 'AC', 'AU', 'AX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 16].isin(['AA', 'BA', 'CA', 'UA', 'XA'])]
+    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX'])]
+    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA'])]
 
-mjd_date_W1 = filtered_rows_W1.iloc[:, 18]
+mjd_date_W1 = filtered_rows_W1.iloc[:, 42]
 mjd_date_W1 = mjd_date_W1.tolist()
-W1_mag = filtered_rows_W1.iloc[:, 5]
-W1_unc = filtered_rows_W1.iloc[:, 6]
+W1_mag = filtered_rows_W1.iloc[:, 18]
+W1_unc = filtered_rows_W1.iloc[:, 19]
 W1_mag = list(zip(W1_mag, mjd_date_W1, W1_unc))
 
-mjd_date_W2 = filtered_rows_W2.iloc[:, 18]
+mjd_date_W2 = filtered_rows_W2.iloc[:, 42]
 mjd_date_W2 = mjd_date_W2.tolist()
-W2_mag = filtered_rows_W2.iloc[:, 9]
-W2_unc = filtered_rows_W2.iloc[:, 10]
+W2_mag = filtered_rows_W2.iloc[:, 22]
+W2_unc = filtered_rows_W2.iloc[:, 23]
 W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
 
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
@@ -953,7 +959,7 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # # plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
 # # Flux
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# plt.title(f'W1 & W2 Flux vs Time (101536.17+221048.9)')
+# plt.title(f'W1 & W2 Flux vs Time (NGC 1068)')
 # plt.legend(loc = 'upper left')
 # plt.show()
 
@@ -1048,7 +1054,7 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # if SDSS_min <= H_alpha <= SDSS_max:
 #     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # if SDSS_min <= H_beta <= SDSS_max:
-#     ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+#     ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
 # if SDSS_min <= Mg2 <= SDSS_max:
 #     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
@@ -1069,7 +1075,7 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # if SDSS_min <= H_alpha <= SDSS_max:
 #     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # if SDSS_min <= H_beta <= SDSS_max:
-#     ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+#     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
 # if SDSS_min <= Mg2 <= SDSS_max:
 #     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 # if SDSS_min <= C4 <= SDSS_max:
@@ -1109,7 +1115,7 @@ ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
 if SDSS_min <= H_alpha <= SDSS_max:
     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 if SDSS_min <= H_beta <= SDSS_max:
-    ax2.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+    ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
 if SDSS_min <= Mg2 <= SDSS_max:
     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 if SDSS_min <= C4 <= SDSS_max:
@@ -1130,7 +1136,7 @@ ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
 if SDSS_min <= H_alpha <= SDSS_max:
     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 if SDSS_min <= H_beta <= SDSS_max:
-    ax3.axvline(H_beta, linewidth=2, color='green', label = u'H\u03B2')
+    ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
 if SDSS_min <= Mg2 <= SDSS_max:
     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
 if SDSS_min <= C4 <= SDSS_max:
