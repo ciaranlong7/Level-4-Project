@@ -15,12 +15,9 @@ c = 299792458
 # Code Breaks for object B because so little data.
 
 #get SDSS & DESI filenames:
-# object_name = '152517.57+401357.6' #Object A
+object_name = '152517.57+401357.6' #Object A
 # object_name = '141923.44-030458.7' #Object B
-object_name = '115403.00+003154.0' #Object C
-# SDSS_file = 'spec-8521-58175-0279.fits' #Object A
-# SDSS_file = 'spec-4032-55333-0404.fits' #Object B
-# SDSS_file = 'spec-0284-51943-0483.fits' #Object C
+# object_name = '115403.00+003154.0' #Object C
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
     MIR_SNR = 'A'
@@ -156,49 +153,65 @@ DESI_max = max(desi_lamb)
 # Normal AGN MIR data
 # MIR_data_normal = pd.read_csv('MIR_data/MIR_data_NGC 1068.csv')
 # MIR_data_normal.iloc[:, 15] = pd.to_numeric(MIR_data_normal.iloc[:, 15], errors='coerce')
-# filtered_rows = MIR_data_normal[(MIR_data_normal.iloc[:, 15] == 0) & (MIR_data_normal.iloc[:, 17] > 5)]
+# filtered_NEO_rows_normal = MIR_data_normal[(MIR_data_normal.iloc[:, 15] == 0) & (MIR_data_normal.iloc[:, 17] > 5)]
 
 # Automatically querying the NEOWISE database
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
-WISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
-MIR_data = WISE_query.to_pandas()
+WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
+NEOWISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
+PTF_query = Irsa.query_region(coordinates=coord, catalog="ptf_lightcurves", spatial="Cone", radius=2 * u.arcsec)
+WISE_data = WISE_query.to_pandas()
+NEO_data = NEOWISE_query.to_pandas()
+PTF_data = PTF_query.to_pandas()
 
-#checking out indexes
-# for idx, col in enumerate(MIR_data.columns):
+# checking out indexes
+# for idx, col in enumerate(PTF_data.columns):
 #     print(f"Index {idx}: {col}")
 
-MIR_data = MIR_data.sort_values(by=MIR_data.columns[42]) #sort in ascending mjd
+WISE_data = WISE_data.sort_values(by=WISE_data.columns[10]) #sort in ascending mjd
+NEO_data = NEO_data.sort_values(by=NEO_data.columns[42]) #sort in ascending mjd
+PTF_data = PTF_data.sort_values(by=PTF_data.columns[0]) #sort in ascending mjd
 
-# I should filter for when cc_flags is g000 or 0g00 as well.
+WISE_data.iloc[:, 6] = pd.to_numeric(WISE_data.iloc[:, 6], errors='coerce')
+filtered_WISE_rows = WISE_data[(WISE_data.iloc[:, 6] == 0) & (WISE_data.iloc[:, 39] == 1)] #filtering for cc_flags == 0 in all bands & qi_fact == 1. Unlike with Neowise, there is no indicidual column for cc_flags in each band
 
-# Convert cc_flags column to numeric, setting errors='coerce' to turn non-numeric entries into NaN. This deals with the cc_flags column sometimes being a string
-MIR_data.iloc[:, 32] = pd.to_numeric(MIR_data.iloc[:, 32], errors='coerce')
-filtered_rows = MIR_data[(MIR_data.iloc[:, 32] == 0) & (MIR_data.iloc[:, 36] > 5)] #checking for rows where cc_flags is 0 & qual_frame is > 5.
+filtered_NEO_rows = NEO_data[NEO_data.iloc[:, 36] > 5] #checking for rows where qual_frame is > 5.
 #"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
-# The qi_fact column (not included in my tables) seems to = qual_frame/10.
+# The qi_fact column seems to be equal to qual_frame/10.
 
-#Filtering for good SNR
+filtered_PTF_rows = PTF_data[(PTF_data.iloc[:, 34] == 1) & (PTF_data.iloc[:, 35] == 1)] #filtering for photcalflag == 1 (indicating source is photometrically calibrated) & goodflag == 1 (indicating source is good)
+
+#Filtering for good SNR, and for no cc_flags:
 if MIR_SNR == 'C':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])]
+    filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])) & (filtered_NEO_rows.iloc[:, 44] == '')]
+    filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])) & (filtered_NEO_rows.iloc[:, 46] == '')]
 if MIR_SNR == 'B':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])]
+    filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])) & (filtered_NEO_rows.iloc[:, 44] == '')]
+    filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])) & (filtered_NEO_rows.iloc[:, 46] == '')]
 if MIR_SNR == 'A':
-    filtered_rows_W1 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX'])]
-    filtered_rows_W2 = filtered_rows[filtered_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA'])]
+    filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX'])) & (filtered_NEO_rows.iloc[:, 44] == '')]
+    filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA'])) & (filtered_NEO_rows.iloc[:, 46] == '')]
 
-mjd_date_W1 = filtered_rows_W1.iloc[:, 42]
-mjd_date_W1 = mjd_date_W1.tolist()
-W1_mag = filtered_rows_W1.iloc[:, 18]
-W1_unc = filtered_rows_W1.iloc[:, 19]
+mjd_date_W1 = filtered_WISE_rows.iloc[:, 10].tolist() + filtered_NEO_rows_W1.iloc[:, 42].tolist()
+W1_mag = filtered_WISE_rows.iloc[:, 11].tolist() + filtered_NEO_rows_W1.iloc[:, 18].tolist()
+W1_unc = filtered_WISE_rows.iloc[:, 12].tolist() + filtered_NEO_rows_W1.iloc[:, 19].tolist()
 W1_mag = list(zip(W1_mag, mjd_date_W1, W1_unc))
 
-mjd_date_W2 = filtered_rows_W2.iloc[:, 42]
-mjd_date_W2 = mjd_date_W2.tolist()
-W2_mag = filtered_rows_W2.iloc[:, 22]
-W2_unc = filtered_rows_W2.iloc[:, 23]
+mjd_date_W2 = filtered_WISE_rows.iloc[:, 10].tolist() + filtered_NEO_rows_W2.iloc[:, 42].tolist()
+W2_mag = filtered_WISE_rows.iloc[:, 14].tolist() + filtered_NEO_rows_W2.iloc[:, 22].tolist()
+W2_unc = filtered_WISE_rows.iloc[:, 15].tolist() + filtered_NEO_rows_W2.iloc[:, 23].tolist()
 W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
+
+filtered_PTF_rows_g = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 1] #using filter identifier column to select g_band observations
+filtered_PTF_rows_r = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 2]
+
+mjd_date_PTF_g = filtered_PTF_rows_g.iloc[:, 0].tolist()
+PTF_mag_g = filtered_PTF_rows_g.iloc[:, 1].tolist()
+PTF_unc_g = filtered_PTF_rows_g.iloc[:, 2].tolist()
+
+mjd_date_PTF_r = filtered_PTF_rows_r.iloc[:, 0].tolist()
+PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
+PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
 
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
 
@@ -912,16 +925,61 @@ elif len(W1_mag) < len(W2_mag):
                 else:
                     print('flag') #this path shouldn't ever be used.
 
+#PTF averaging
+g_list = []
+g_unc_list = []
+g_av_mag = []
+g_av_uncs = []
+mjd_list_g = []
+mjd_date_g_epoch = []
+one_epoch_g = []
+one_epoch_g_unc = []
+m = 0 #select an epoch
+p = 0
+for i in range(len(PTF_mag_g)):
+    if i == 0:
+        g_list.append(PTF_mag_g[i])
+        g_unc_list.append(PTF_unc_g[i])
+        mjd_list_g.append(mjd_date_PTF_g[i])
+        continue
+    elif W1_mag[i] - W1_mag[i-1] < 100:
+        g_list.append(PTF_mag_g[i])
+        g_unc_list.append(PTF_unc_g[i])
+        mjd_list_g.append(mjd_date_PTF_g[i])
+        continue
+    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+        g_av_mag.append(np.average(g_list))
+        g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
+        mjd_date_g_epoch.append(np.average(mjd_list_g))
+        if p == m:
+            one_epoch_g = g_list
+            one_epoch_g_unc = g_av_uncs
+            one_epoch_g_mjd = mjd_list_g
+            p += 1
+        g_list = []
+        g_unc_list = []
+        mjd_list_g = []
+        g_list.append(PTF_mag_g[i])
+        g_unc_list.append(PTF_unc_g[i])
+        mjd_list_g.append(mjd_date_PTF_g[i])
+        p += 1
+        continue
+
 #Changing mjd date to days since start:
-SDSS_mjd = SDSS_mjd - mjd_date_[0]
-DESI_mjd = DESI_mjd - mjd_date_[0]
-mjd_value = mjd_value - mjd_date_[0]
-mjd_date_ = [date - mjd_date_[0] for date in mjd_date_]
+min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], mjd_date_[0]])
+SDSS_mjd = SDSS_mjd - min_mjd
+DESI_mjd = DESI_mjd - min_mjd
+PTF_mjd_g = [date - min_mjd for date in mjd_date_PTF_g]
+PTF_mjd_r = [date - min_mjd for date in mjd_date_PTF_r]
+mjd_value = mjd_value - min_mjd
+mjd_date_ = [date - min_mjd for date in mjd_date_]
 
 print(f'Object Name = {object_name}')
 print(f'W1 data points = {len(W1_mag)}')
 print(f'W2 data points = {len(W2_mag)}')
-print(f'Number of epochs = {len(W1_averages)}')
+print(f'g data points = {len(PTF_mag_g)}')
+print(f'r data points = {len(PTF_mag_r)}')
+print(f'Number of MIR epochs = {len(W1_averages)}')
 
 # Plotting ideas:
 # Find a way to convert from SDSS & DESI flux to mag.
@@ -931,15 +989,23 @@ def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a da
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
     return k*10**(-mag/2.5)
 
-W1_k = 309.540 #Janskys
+W1_k = 309.540 #Janskys. This means that mag 0 = 309.540 Janskys at the W1 wl.
 W2_k = 171.787
+g_k = 3991
+r_k = 3174
 W1_wl = 3.4e4 #Angstroms
 W2_wl = 4.6e4
+g_wl = 0.467e4
+r_wl = 0.616e4
 
 W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
-W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
+g_averages_flux = [flux(mag, g_k, g_wl) for mag in PTF_mag_g]
+r_averages_flux = [flux(mag, r_k, r_wl) for mag in PTF_mag_r]
+W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
+g_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(PTF_unc_g, g_flux)]
+r_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(PTF_unc_r, r_flux)]
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(14,6))
@@ -1072,17 +1138,17 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # ax3 = fig.add_subplot(2, 2, 4)  # Right plot in the second row
 # ax3.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'midnightblue')
 # ax3.plot(desi_lamb, Gaus_smoothed_DESI, color = 'midnightblue')
-# if SDSS_min <= H_alpha <= SDSS_max:
+# if DESI_min <= H_alpha <= DESI_max:
 #     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
+# if DESI_min <= H_beta <= DESI_max:
 #     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
+# if DESI_min <= Mg2 <= DESI_max:
 #     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C4 <= SDSS_max:
+# if DESI_min <= C4 <= DESI_max:
 #     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-# if SDSS_min <= C3_ <= SDSS_max:
+# if DESI_min <= C3_ <= DESI_max:
 #     ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
-# if SDSS_min <= _O3_ <= SDSS_max:
+# if DESI_min <= _O3_ <= DESI_max:
 #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
 # ax3.set_xlabel('Wavelength / Å')
 # ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
@@ -1101,12 +1167,14 @@ gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
 ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
 ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+ax1.errorbar(PTF_mjd_g, g_flux, yerr=g_uncs_flux, fmt='o', color='green', capsize=5, label=u'PTF - g band')
+ax1.errorbar(PTF_mjd_r, r_flux, yerr=r_uncs_flux, fmt='o', color='red', capsize=5, label=u'PTF - r band')
 ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
 ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
 ax1.set_xlabel('Days since first observation')
 ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
-ax1.legend(loc='upper left')
+ax1.legend(loc='best')
 
 # Bottom left plot spanning 2 rows and 1 column (ax2)
 ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
@@ -1133,17 +1201,17 @@ ax2.legend(loc='upper right')
 ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
 ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
 ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-if SDSS_min <= H_alpha <= SDSS_max:
+if DESI_min <= H_alpha <= DESI_max:
     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-if SDSS_min <= H_beta <= SDSS_max:
+if DESI_min <= H_beta <= DESI_max:
     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-if SDSS_min <= Mg2 <= SDSS_max:
+if DESI_min <= Mg2 <= DESI_max:
     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-if SDSS_min <= C4 <= SDSS_max:
+if DESI_min <= C4 <= DESI_max:
     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-if SDSS_min <= C3_ <= SDSS_max:
+if DESI_min <= C3_ <= DESI_max:
     ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
-# if SDSS_min <= _O3_ <= SDSS_max:
+# if DESI_min <= _O3_ <= DESI_max:
 #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
 ax3.set_xlabel('Wavelength / Å')
 ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
