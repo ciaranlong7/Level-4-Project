@@ -8,11 +8,18 @@ from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.visualization import quantity_support
 from astropy.coordinates import SkyCoord
 from astroquery.ipac.irsa import Irsa
+from dust_extinction.parameter_averages import G23
 quantity_support()  # for getting units on the axes below
 
 c = 299792458
 
 # Code Breaks for object B because so little data.
+# Plotting ideas:
+# Find a way to convert from SDSS & DESI flux to mag.
+# Look into spectral fitting of DESI & SDSS spectra.
+
+#G23 dust extinction model:
+#https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
 #get SDSS & DESI filenames:
 object_name = '152517.57+401357.6' #Object A
@@ -40,10 +47,8 @@ DESI_mjd = object_data.iloc[0, 12]
 SDSS_file = f'spec-{SDSS_plate}-{SDSS_mjd:.0f}-{SDSS_fiberid}.fits'
 DESI_file = f'spectrum_desi_{object_name}.csv'
 
-#for now - when changing objects, must manually change:
-#Create the new MIR file & name appropiately - 'MIR_data_{object_name}' 
-print('MIR Search (RA ±DEC):')
-print(f'{SDSS_RA} {SDSS_DEC:+}')
+# print('MIR Search (RA ±DEC):')
+# print(f'{SDSS_RA} {SDSS_DEC:+}')
 
 #Open the SDSS file
 SDSS_file_path = f'clagn_spectra/{SDSS_file}'
@@ -53,19 +58,25 @@ with fits.open(SDSS_file_path) as hdul:
 
     sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
     sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+    sdss_lamb = sdss_lamb*10**(-4) #Wavelength in microns
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
 #Open the DESI file
 DESI_file_path = f'clagn_spectra/{DESI_file}'
 DESI_spec = pd.read_csv(DESI_file_path)
 desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+desi_lamb = desi_lamb*10**(-4) #converting to microns
 desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+
+ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
+sdss_flux = sdss_flux*ext_model.extinguish(sdss_lamb, Av=0.75)
+desi_flux = desi_flux*ext_model.extinguish(desi_lamb, Av=0.75)
 
 # Correcting for redshift.
 SDSS_z = object_data.iloc[0, 3]
 DESI_z = object_data.iloc[0, 10]
-sdss_lamb = sdss_lamb/(1+SDSS_z)
-desi_lamb = desi_lamb/(1+DESI_z)
+sdss_lamb = (sdss_lamb/(1+SDSS_z))*10**(4) #converting back to angstroms now extinction correction is done
+desi_lamb = (desi_lamb/(1+DESI_z))*10**(4)
 
 #Calculate rolling average manually
 def rolling_average(arr, window_size):
@@ -76,13 +87,13 @@ def rolling_average(arr, window_size):
         averages.append(avg)
     return np.array(averages)
 
-#Manual Rolling averages
-SDSS_rolling = rolling_average(sdss_flux, 10)
-DESI_rolling = rolling_average(desi_flux, 10)
-sdss_lamb = sdss_lamb[9:]
-desi_lamb = desi_lamb[9:]
-sdss_flux = sdss_flux[9:]
-desi_flux = desi_flux[9:]
+#Manual Rolling averages - only uncomment if using (otherwise cuts off first 9 data points)
+# SDSS_rolling = rolling_average(sdss_flux, 10)
+# DESI_rolling = rolling_average(desi_flux, 10)
+# sdss_lamb = sdss_lamb[9:]
+# desi_lamb = desi_lamb[9:]
+# sdss_flux = sdss_flux[9:]
+# desi_flux = desi_flux[9:]
 
 # Gaussian smoothing
 # adjust stddev to control the degree of smoothing. Higher stddev means smoother
@@ -107,18 +118,18 @@ SDSS_max = max(sdss_lamb)
 DESI_min = min(desi_lamb)
 DESI_max = max(desi_lamb)
 
-# #Plot of SDSS & DESI Spectra
-# plt.figure(figsize=(18,6))
-# #Original unsmoothed spectrum
+#Plot of SDSS & DESI Spectra
+# plt.figure(figsize=(12,7))
+#Original unsmoothed spectrum
 # plt.plot(sdss_lamb, sdss_flux, alpha = 0.2, color = 'orange')
 # plt.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'blue')
-# #Gausian smoothing
+#Gausian smoothing
 # plt.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'orange', label = 'SDSS')
 # plt.plot(desi_lamb, Gaus_smoothed_DESI, color = 'blue', label = 'DESI')
-# #Manual smoothing
-# # plt.plot(sdss_lamb, SDSS_rolling, color = 'orange', label = 'SDSS')
-# # plt.plot(desi_lamb, DESI_rolling, color = 'blue', label = 'DESI')
-# #Adding in positions of emission lines
+#Manual smoothing
+# plt.plot(sdss_lamb, SDSS_rolling, color = 'orange', label = 'SDSS')
+# plt.plot(desi_lamb, DESI_rolling, color = 'blue', label = 'DESI')
+#Adding in positions of emission lines
 # if SDSS_min <= H_alpha <= SDSS_max:
 #     plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # if SDSS_min <= H_beta <= SDSS_max:
@@ -131,31 +142,21 @@ DESI_max = max(desi_lamb)
 #     plt.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
 # if SDSS_min <= _O3_ <= SDSS_max:
 #     plt.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# #Axes labels
+#Axes labels
 # plt.xlabel('Wavelength / Å')
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# #Two different titles (for Gaussian/Manual)
+#Two different titles (for Gaussian/Manual)
 # plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
-# # plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
-
+# plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
 # plt.legend(loc = 'upper right')
 # plt.show()
-
-
-#Plotting Optical data:
-# Optical_data = pd.read_csv('PTF_optical_mag_152517.57+401357.6.csv')
-
-# mjd_date_optical = Optical_data.iloc[:, 0]
-
-#Plotting MIR data
-#data must be filtered in terms order of mjd - oldest to newest
 
 # Normal AGN MIR data
 # MIR_data_normal = pd.read_csv('MIR_data/MIR_data_NGC 1068.csv')
 # MIR_data_normal.iloc[:, 15] = pd.to_numeric(MIR_data_normal.iloc[:, 15], errors='coerce')
 # filtered_NEO_rows_normal = MIR_data_normal[(MIR_data_normal.iloc[:, 15] == 0) & (MIR_data_normal.iloc[:, 17] > 5)]
 
-# Automatically querying the NEOWISE database
+# Automatically querying catalogues
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
 WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
 NEOWISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
@@ -164,9 +165,11 @@ WISE_data = WISE_query.to_pandas()
 NEO_data = NEOWISE_query.to_pandas()
 PTF_data = PTF_query.to_pandas()
 
-# checking out indexes
+# # checking out indexes
 # for idx, col in enumerate(PTF_data.columns):
 #     print(f"Index {idx}: {col}")
+
+# print(PTF_data.iloc[:, 3].unique()) #problem - there are two objects in my search
 
 WISE_data = WISE_data.sort_values(by=WISE_data.columns[10]) #sort in ascending mjd
 NEO_data = NEO_data.sort_values(by=NEO_data.columns[42]) #sort in ascending mjd
@@ -1189,10 +1192,6 @@ print(f'g data points = {len(PTF_mag_g)}')
 print(f'r data points = {len(PTF_mag_r)}')
 print(f'Number of MIR epochs = {len(W1_averages)}')
 
-# Plotting ideas:
-# Find a way to convert from SDSS & DESI flux to mag.
-# Look into spectral fitting of DESI & SDSS spectra.
-
 def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
     return k*10**(-mag/2.5)
@@ -1367,67 +1366,67 @@ r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, 
 # plt.show()
 
 
-# Making a big figure with flux & SDSS, DESI spectra added in
-fig = plt.figure(figsize=(12, 7)) # (width, height)
-gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+# # Making a big figure with flux & SDSS, DESI spectra added in
+# fig = plt.figure(figsize=(12, 7)) # (width, height)
+# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# Top plot spanning two columns and three rows (ax1)
-ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label=u'PTF - g band')
-ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label=u'PTF - r band')
-ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-ax1.set_xlabel('Days since first observation')
-ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax1.set_title(f'W1 & W2 Flux vs Time ({object_name})')
-ax1.legend(loc='best')
+# # Top plot spanning two columns and three rows (ax1)
+# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+# ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
+# # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
+# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+# ax1.set_xlabel('Days since first observation')
+# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax1.set_title(f'Flux vs Time ({object_name})')
+# ax1.legend(loc='best')
 
-# Bottom left plot spanning 2 rows and 1 column (ax2)
-ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-if SDSS_min <= H_alpha <= SDSS_max:
-    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-if SDSS_min <= H_beta <= SDSS_max:
-    ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-if SDSS_min <= Mg2 <= SDSS_max:
-    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-if SDSS_min <= C4 <= SDSS_max:
-    ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-if SDSS_min <= C3_ <= SDSS_max:
-    ax2.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
-# if SDSS_min <= _O3_ <= SDSS_max:
-#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-ax2.set_xlabel('Wavelength / Å')
-ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-ax2.legend(loc='upper right')
+# # Bottom left plot spanning 2 rows and 1 column (ax2)
+# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+# if SDSS_min <= H_alpha <= SDSS_max:
+#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+# if SDSS_min <= H_beta <= SDSS_max:
+#     ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+# if SDSS_min <= Mg2 <= SDSS_max:
+#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+# if SDSS_min <= C4 <= SDSS_max:
+#     ax2.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+# if SDSS_min <= C3_ <= SDSS_max:
+#     ax2.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# # if SDSS_min <= _O3_ <= SDSS_max:
+# #     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+# ax2.set_xlabel('Wavelength / Å')
+# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+# ax2.legend(loc='upper right')
 
-# Bottom right plot spanning 2 rows and 1 column (ax3)
-ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-if DESI_min <= H_alpha <= DESI_max:
-    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-if DESI_min <= H_beta <= DESI_max:
-    ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-if DESI_min <= Mg2 <= DESI_max:
-    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-if DESI_min <= C4 <= DESI_max:
-    ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
-if DESI_min <= C3_ <= DESI_max:
-    ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
-# if DESI_min <= _O3_ <= DESI_max:
-#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-ax3.set_xlabel('Wavelength / Å')
-ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-ax3.legend(loc='upper right')
+# # Bottom right plot spanning 2 rows and 1 column (ax3)
+# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+# if DESI_min <= H_alpha <= DESI_max:
+#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+# if DESI_min <= H_beta <= DESI_max:
+#     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+# if DESI_min <= Mg2 <= DESI_max:
+#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+# if DESI_min <= C4 <= DESI_max:
+#     ax3.axvline(C4, linewidth=2, color='indigo', label = 'C IV')
+# if DESI_min <= C3_ <= DESI_max:
+#     ax3.axvline(C3_, linewidth=2, color='darkviolet', label = 'C III]')
+# # if DESI_min <= _O3_ <= DESI_max:
+# #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+# ax3.set_xlabel('Wavelength / Å')
+# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+# ax3.legend(loc='upper right')
 
-fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-#top and bottom adjust the vertical space on the top and bottom of the figure.
-#left and right adjust the horizontal space on the left and right sides.
-#hspace and wspace adjust the spacing between rows and columns, respectively.
-plt.show()
+# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+# #top and bottom adjust the vertical space on the top and bottom of the figure.
+# #left and right adjust the horizontal space on the left and right sides.
+# #hspace and wspace adjust the spacing between rows and columns, respectively.
+# plt.show()
