@@ -250,6 +250,23 @@ if len(W1_mag) == len(W2_mag):
                     j += 1
                     i += 1
                     continue
+                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    j += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -289,6 +306,23 @@ if len(W1_mag) == len(W2_mag):
                     k += 1
                     i += 1
                     continue
+                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    k += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
@@ -327,6 +361,22 @@ if len(W1_mag) == len(W2_mag):
                 W2_list.append(W2_mag[i-j][0])
                 W2_unc_list.append(W2_mag[i-j][2])
                 i += 1
+                continue
+            elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                W1_averages.append(np.average(W1_list))
+                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                W2_averages.append(np.average(W2_list))
+                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                mjd_date_.append(W1_mag[i-1-k][1])
+                if p == m:
+                    one_epoch_W1 = W1_list
+                    one_epoch_W1_unc = W1_unc_list
+                    one_epoch_W2 = W2_list
+                    one_epoch_W2_unc = W2_unc_list
+                    mjd_value = W1_mag[i-1-k][1]
+                    p += 1
+                i += 1
+                p += 1
                 continue
             elif x == 0: #checking two adjacent W2 data points are in the same epoch.
                 y = 0
@@ -481,6 +531,23 @@ elif len(W1_mag) > len(W2_mag):
                     j += 1
                     i += 1
                     continue
+                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    j += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -520,6 +587,23 @@ elif len(W1_mag) > len(W2_mag):
                     k += 1
                     i += 1
                     continue
+                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    k += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
@@ -558,6 +642,22 @@ elif len(W1_mag) > len(W2_mag):
                 W2_list.append(W2_mag[i-j][0])
                 W2_unc_list.append(W2_mag[i-j][2])
                 i += 1
+                continue
+            elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+                W1_averages.append(np.average(W1_list))
+                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                W2_averages.append(np.average(W2_list))
+                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                mjd_date_.append(W1_mag[i-1-k][1])
+                if p == m:
+                    one_epoch_W1 = W1_list
+                    one_epoch_W1_unc = W1_unc_list
+                    one_epoch_W2 = W2_list
+                    one_epoch_W2_unc = W2_unc_list
+                    mjd_value = W1_mag[i-1-k][1]
+                    p += 1
+                i += 1
+                p += 1
                 continue
             elif x == 0: #checking two adjacent W2 data points are in the same epoch.
                 y = 0
@@ -711,6 +811,23 @@ elif len(W1_mag) < len(W2_mag):
                     j += 1
                     i += 1
                     continue
+                elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    j += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
                     W1_list.append(W1_mag[i-k][0])
                     W1_unc_list.append(W1_mag[i-k][2])
@@ -750,6 +867,23 @@ elif len(W1_mag) < len(W2_mag):
                     k += 1
                     i += 1
                     continue
+                elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+                    W1_averages.append(np.average(W1_list))
+                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                    W2_averages.append(np.average(W2_list))
+                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                    mjd_date_.append(W1_mag[i-1-k][1])
+                    if p == m:
+                        one_epoch_W1 = W1_list
+                        one_epoch_W1_unc = W1_unc_list
+                        one_epoch_W2 = W2_list
+                        one_epoch_W2_unc = W2_unc_list
+                        mjd_value = W1_mag[i-1-k][1]
+                        p += 1
+                    k += 1
+                    i += 1
+                    p += 1
+                    continue
                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
                     W2_list.append(W2_mag[i-j][0])
                     W2_unc_list.append(W2_mag[i-j][2])
@@ -788,6 +922,22 @@ elif len(W1_mag) < len(W2_mag):
                 W2_list.append(W2_mag[i-j][0])
                 W2_unc_list.append(W2_mag[i-j][2])
                 i += 1
+                continue
+            elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+                W1_averages.append(np.average(W1_list))
+                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                W2_averages.append(np.average(W2_list))
+                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                mjd_date_.append(W1_mag[i-1-k][1])
+                if p == m:
+                    one_epoch_W1 = W1_list
+                    one_epoch_W1_unc = W1_unc_list
+                    one_epoch_W2 = W2_list
+                    one_epoch_W2_unc = W2_unc_list
+                    mjd_value = W1_mag[i-1-k][1]
+                    p += 1
+                i += 1
+                p += 1
                 continue
             elif x == 0: #confirming two adjacent W2 data points are in the same epoch
                 y = 0
@@ -934,7 +1084,7 @@ mjd_list_g = []
 mjd_date_g_epoch = []
 one_epoch_g = []
 one_epoch_g_unc = []
-m = 0 #select an epoch
+m = 0 #select an epoch, for both g & r band
 p = 0
 for i in range(len(PTF_mag_g)):
     if i == 0:
@@ -942,7 +1092,17 @@ for i in range(len(PTF_mag_g)):
         g_unc_list.append(PTF_unc_g[i])
         mjd_list_g.append(mjd_date_PTF_g[i])
         continue
-    elif W1_mag[i] - W1_mag[i-1] < 100:
+    elif i == len(PTF_mag_g) - 1: #if final data point, close the epoch
+        g_av_mag.append(np.average(g_list))
+        g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
+        mjd_date_g_epoch.append(np.average(mjd_list_g))
+        if p == m:
+            one_epoch_g = g_list
+            one_epoch_g_unc = g_unc_list
+            one_epoch_g_mjd = mjd_list_g
+            p += 1
+        continue
+    elif mjd_date_PTF_g[i] - mjd_date_PTF_g[i-1] < 100:
         g_list.append(PTF_mag_g[i])
         g_unc_list.append(PTF_unc_g[i])
         mjd_list_g.append(mjd_date_PTF_g[i])
@@ -953,7 +1113,7 @@ for i in range(len(PTF_mag_g)):
         mjd_date_g_epoch.append(np.average(mjd_list_g))
         if p == m:
             one_epoch_g = g_list
-            one_epoch_g_unc = g_av_uncs
+            one_epoch_g_unc = g_unc_list
             one_epoch_g_mjd = mjd_list_g
             p += 1
         g_list = []
@@ -965,12 +1125,60 @@ for i in range(len(PTF_mag_g)):
         p += 1
         continue
 
+r_list = []
+r_unc_list = []
+r_av_mag = []
+r_av_uncs = []
+mjd_list_r = []
+mjd_date_r_epoch = []
+one_epoch_r = []
+one_epoch_r_unc = []
+m = 1
+p = 0
+for i in range(len(PTF_mag_r)):
+    if i == 0:
+        r_list.append(PTF_mag_r[i])
+        r_unc_list.append(PTF_unc_r[i])
+        mjd_list_r.append(mjd_date_PTF_r[i])
+        continue
+    elif i == len(PTF_mag_r) - 1:
+        r_av_mag.append(np.average(r_list))
+        r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
+        mjd_date_r_epoch.append(np.average(mjd_list_r))
+        if p == m:
+            one_epoch_r = r_list
+            one_epoch_r_unc = r_unc_list
+            one_epoch_r_mjd = mjd_list_r
+            p += 1
+    elif mjd_date_PTF_r[i] - mjd_date_PTF_r[i-1] < 100:
+        r_list.append(PTF_mag_r[i])
+        r_unc_list.append(PTF_unc_r[i])
+        mjd_list_r.append(mjd_date_PTF_r[i])
+        continue
+    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+        r_av_mag.append(np.average(r_list))
+        r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
+        mjd_date_r_epoch.append(np.average(mjd_list_r))
+        if p == m:
+            one_epoch_r = r_list
+            one_epoch_r_unc = r_unc_list
+            one_epoch_r_mjd = mjd_list_r
+            p += 1
+        r_list = []
+        r_unc_list = []
+        mjd_list_r = []
+        r_list.append(PTF_mag_r[i])
+        r_unc_list.append(PTF_unc_r[i])
+        mjd_list_r.append(mjd_date_PTF_r[i])
+        p += 1
+        continue
+
 #Changing mjd date to days since start:
 min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], mjd_date_[0]])
 SDSS_mjd = SDSS_mjd - min_mjd
 DESI_mjd = DESI_mjd - min_mjd
-PTF_mjd_g = [date - min_mjd for date in mjd_date_PTF_g]
-PTF_mjd_r = [date - min_mjd for date in mjd_date_PTF_r]
+mjd_date_g_epoch = [date - min_mjd for date in mjd_date_g_epoch]
+mjd_date_r_epoch = [date - min_mjd for date in mjd_date_r_epoch]
 mjd_value = mjd_value - min_mjd
 mjd_date_ = [date - min_mjd for date in mjd_date_]
 
@@ -1000,12 +1208,12 @@ r_wl = 0.616e4
 
 W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
-g_averages_flux = [flux(mag, g_k, g_wl) for mag in PTF_mag_g]
-r_averages_flux = [flux(mag, r_k, r_wl) for mag in PTF_mag_r]
+g_averages_flux = [flux(mag, g_k, g_wl) for mag in g_av_mag]
+r_averages_flux = [flux(mag, r_k, r_wl) for mag in r_av_mag]
 W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
-g_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(PTF_unc_g, g_flux)]
-r_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(PTF_unc_r, r_flux)]
+g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
+r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(14,6))
@@ -1058,20 +1266,20 @@ r_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(PTF_unc_r, r_f
 # data_point_W2 = list(range(1, len(one_epoch_W2) + 1))
 
 # # Plot in the first subplot (ax1)
-# ax1.errorbar(data_point_W1, one_epoch_W1, yerr=one_epoch_W1_unc, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# ax1.set_title('W1')
-# ax1.set_xlabel('Data Point')
+# ax1.errorbar(one_epoch_r_mjd, one_epoch_r, yerr=one_epoch_r_unc, fmt='o', color='red', capsize=5, label=u'PTF - r band')
+# ax1.set_title('r band')
+# ax1.set_xlabel('mjd')
 # ax1.set_ylabel('Magnitude')
 # ax1.legend(loc='upper left')
 
 # # Plot in the second subplot (ax2)
-# ax2.errorbar(data_point_W2, one_epoch_W2, yerr=one_epoch_W2_unc, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax2.set_title('W2')
-# ax2.set_xlabel('Data Point')
+# ax2.errorbar(one_epoch_g_mjd, one_epoch_g, yerr=one_epoch_g_unc, fmt='o', color='green', capsize=5, label=u'PTF - g band')
+# ax2.set_title('g band')
+# ax2.set_xlabel('mjd')
 # ax2.set_ylabel('Magnitude')
 # ax2.legend(loc='upper left')
 
-# fig.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
+# fig.suptitle(f'g & r band Measurements at Epoch {m+1} - {min([mjd_date_g_epoch[0], mjd_date_r_epoch[0]]):.0f} Days Since First Observation', fontsize=16)
 # plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
 # plt.show()
 
@@ -1167,8 +1375,8 @@ gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
 ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
 ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-ax1.errorbar(PTF_mjd_g, g_flux, yerr=g_uncs_flux, fmt='o', color='green', capsize=5, label=u'PTF - g band')
-ax1.errorbar(PTF_mjd_r, r_flux, yerr=r_uncs_flux, fmt='o', color='red', capsize=5, label=u'PTF - r band')
+ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label=u'PTF - g band')
+ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label=u'PTF - r band')
 ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
 ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
 ax1.set_xlabel('Days since first observation')
