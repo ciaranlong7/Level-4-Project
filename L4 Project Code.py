@@ -25,8 +25,8 @@ c = 299792458
 object_name = '152517.57+401357.6' #Object A
 # object_name = '141923.44-030458.7' #Object B
 # object_name = '115403.00+003154.0' #Object C
-object_name = '020942.78-042830.3'
-object_name = '020153.27-050840.2'
+# object_name = '020942.78-042830.3'
+# object_name = '020153.27-050840.2'
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -163,10 +163,10 @@ DESI_file = f'spectrum_desi_{object_name}.csv'
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
 WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
 NEOWISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
-PTF_query = Irsa.query_region(coordinates=coord, catalog="ptf_lightcurves", spatial="Cone", radius=2 * u.arcsec)
+# PTF_query = Irsa.query_region(coordinates=coord, catalog="ptf_lightcurves", spatial="Cone", radius=2 * u.arcsec)
 WISE_data = WISE_query.to_pandas()
 NEO_data = NEOWISE_query.to_pandas()
-PTF_data = PTF_query.to_pandas()
+# PTF_data = PTF_query.to_pandas()
 
 # # checking out indexes
 # for idx, col in enumerate(PTF_data.columns):
@@ -176,7 +176,7 @@ PTF_data = PTF_query.to_pandas()
 
 WISE_data = WISE_data.sort_values(by=WISE_data.columns[10]) #sort in ascending mjd
 NEO_data = NEO_data.sort_values(by=NEO_data.columns[42]) #sort in ascending mjd
-PTF_data = PTF_data.sort_values(by=PTF_data.columns[0]) #sort in ascending mjd
+# PTF_data = PTF_data.sort_values(by=PTF_data.columns[0]) #sort in ascending mjd
 
 WISE_data.iloc[:, 6] = pd.to_numeric(WISE_data.iloc[:, 6], errors='coerce')
 filtered_WISE_rows = WISE_data[(WISE_data.iloc[:, 6] == 0) & (WISE_data.iloc[:, 39] == 1)] #filtering for cc_flags == 0 in all bands & qi_fact == 1. Unlike with Neowise, there is no indicidual column for cc_flags in each band
@@ -185,7 +185,7 @@ filtered_NEO_rows = NEO_data[NEO_data.iloc[:, 36] > 5] #checking for rows where 
 #"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
 # The qi_fact column seems to be equal to qual_frame/10.
 
-filtered_PTF_rows = PTF_data[(PTF_data.iloc[:, 34] == 1) & (PTF_data.iloc[:, 35] == 1)] #filtering for photcalflag == 1 (indicating source is photometrically calibrated) & goodflag == 1 (indicating source is good)
+# filtered_PTF_rows = PTF_data[(PTF_data.iloc[:, 34] == 1) & (PTF_data.iloc[:, 35] == 1)] #filtering for photcalflag == 1 (indicating source is photometrically calibrated) & goodflag == 1 (indicating source is good)
 
 #Filtering for good SNR, and for no cc_flags:
 if MIR_SNR == 'C':
@@ -208,22 +208,22 @@ W2_mag = filtered_WISE_rows.iloc[:, 14].tolist() + filtered_NEO_rows_W2.iloc[:, 
 W2_unc = filtered_WISE_rows.iloc[:, 15].tolist() + filtered_NEO_rows_W2.iloc[:, 23].tolist()
 W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
 
-filtered_PTF_rows_g = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 1] #using filter identifier column to select g_band observations
-filtered_PTF_rows_r = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 2]
+# filtered_PTF_rows_g = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 1] #using filter identifier column to select g_band observations
+# filtered_PTF_rows_r = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 2]
 
-mjd_date_PTF_g = filtered_PTF_rows_g.iloc[:, 0].tolist()
-PTF_mag_g = filtered_PTF_rows_g.iloc[:, 1].tolist()
-PTF_unc_g = filtered_PTF_rows_g.iloc[:, 2].tolist()
+# mjd_date_PTF_g = filtered_PTF_rows_g.iloc[:, 0].tolist()
+# PTF_mag_g = filtered_PTF_rows_g.iloc[:, 1].tolist()
+# PTF_unc_g = filtered_PTF_rows_g.iloc[:, 2].tolist()
 
-mjd_date_PTF_r = filtered_PTF_rows_r.iloc[:, 0].tolist()
-PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
-PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
+# mjd_date_PTF_r = filtered_PTF_rows_r.iloc[:, 0].tolist()
+# PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
+# PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
 
 print(f'Object Name = {object_name}')
 print(f'W1 data points = {len(W1_mag)}')
 print(f'W2 data points = {len(W2_mag)}')
-print(f'g data points = {len(PTF_mag_g)}')
-print(f'r data points = {len(PTF_mag_r)}')
+# print(f'g data points = {len(PTF_mag_g)}')
+# print(f'r data points = {len(PTF_mag_r)}')
 
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
 
@@ -231,971 +231,1084 @@ print(f'r data points = {len(PTF_mag_r)}')
 #Two assumptions required for code to work:
 #1. There is never a situation where the data has only one data point for an epoch.
 #2. The data is in order of oldest mjd to most recent.
+
+# W1 data first
 W1_list = []
-W2_list = []
 W1_unc_list = []
-W2_unc_list = []
+W1_mjds = []
 W1_averages= []
-W2_averages = []
 W1_av_uncs = []
-W2_av_uncs = []
-mjd_date_ = []
+W1_av_mjd_date = []
 one_epoch_W1 = []
 one_epoch_W1_unc = []
+m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+p = 0
+for i in range(len(W1_mag)):
+    if i == 0: #first reading - store and move on
+        W1_list.append(W1_mag[i][0])
+        W1_mjds.append(W1_mag[i][1])
+        W1_unc_list.append(W1_mag[i][2])
+        continue
+    elif i == len(W1_mag) - 1: #if final data point, close the epoch
+        W1_list.append(W1_mag[i][0])
+        W1_mjds.append(W1_mag[i][1])
+        W1_unc_list.append(W1_mag[i][2])
+        W1_averages.append(np.average(W1_list))
+        W1_av_mjd_date.append(np.average(W1_mjds))
+        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+        if p == m:
+            one_epoch_W1 = W1_list
+            one_epoch_W1_unc = W1_unc_list
+            mjd_value = W1_mag[i][1]
+            p += 1
+        p += 1
+        continue
+    elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
+        W1_list.append(W1_mag[i][0])
+        W1_mjds.append(W1_mag[i][1])
+        W1_unc_list.append(W1_mag[i][2])
+        continue
+    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+        W1_averages.append(np.average(W1_list))
+        W1_av_mjd_date.append(np.average(W1_mjds))
+        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+        if p == m:
+            one_epoch_W1 = W1_list
+            one_epoch_W1_unc = W1_unc_list
+            mjd_value = W1_mag[i][1]
+            p += 1
+        W1_list = []
+        W1_mjds = []
+        W1_unc_list = []
+        W1_list.append(W1_mag[i][0])
+        W1_mjds.append(W1_mag[i][1])
+        W1_unc_list.append(W1_mag[i][2])
+        p += 1
+        continue
+
+# W2 data second
+W2_list = []
+W2_unc_list = []
+W2_mjds = []
+W2_averages= []
+W2_av_uncs = []
+W2_av_mjd_date = []
 one_epoch_W2 = []
 one_epoch_W2_unc = []
 m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
-if len(W1_mag) == len(W2_mag):
-    i = 0
-    j = 0
-    k = 0
-    x = 0 #skip flag for W2
-    y = 0 #skip flag for W1
-    p = 0
-    while i-k+1 < len(W1_mag):
-        if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
-            if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
-                x += 1
-                if i == 0:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list)))) #see derivation in week 5 folder.
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1]) #Assumes that the mjd dates are so close that any difference between them is negligible
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-            elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
-                y += 1
-                if i == 0:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-        else: #mjd dates are the same
-            if i == 0:
-                W1_list.append(W1_mag[i-k][0])
-                W1_unc_list.append(W1_mag[i-k][2])
-                W2_list.append(W2_mag[i-j][0])
-                W2_unc_list.append(W2_mag[i-j][2])
-                i += 1
-                continue
-            elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                W1_averages.append(np.average(W1_list))
-                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                W2_averages.append(np.average(W2_list))
-                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                mjd_date_.append(W1_mag[i-1-k][1])
-                if p == m:
-                    one_epoch_W1 = W1_list
-                    one_epoch_W1_unc = W1_unc_list
-                    one_epoch_W2 = W2_list
-                    one_epoch_W2_unc = W2_unc_list
-                    mjd_value = W1_mag[i-1-k][1]
-                    p += 1
-                i += 1
-                p += 1
-                continue
-            elif x == 0: #checking two adjacent W2 data points are in the same epoch.
-                y = 0
-                if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            elif y == 0:
-                x = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            else: #This happens if the data goes BB, CB, BC, AA (and ph_qual lim set to >= B)
-                #All valid data points have already been stored. W1_mag[i-k] & W2_mag[i-j] corresponds to the AA data point in the example above
-                x = 0
-                y = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
-                    if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W1_mag[i-1-k][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i-1-k][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
-                    if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W2_mag[i-1-j][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W2_mag[i-1-j][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                else:
-                    print('flag') #this path shouldn't ever be used.
-elif len(W1_mag) > len(W2_mag):
-    i = 0
-    j = 0
-    k = 0
-    x = 0 #skip flag for W2
-    y = 0 #skip flag for W1
-    p = 0 #for grabbing only one epoch's data
-    while i-k+1 < len(W1_mag):
-        if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
-            if W2_mag[i-j][1] > W1_mag[i-k][1]:
-                x += 1
-                if i == 0:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1]) #i-1 because want to select the previous epoch's date
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0]) #this is where it's getting fucked up
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-            elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
-                y += 1
-                if i == 0:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1]) 
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-        else: #mjd dates are the same
-            if i == 0:
-                W1_list.append(W1_mag[i-k][0])
-                W1_unc_list.append(W1_mag[i-k][2])
-                W2_list.append(W2_mag[i-j][0])
-                W2_unc_list.append(W2_mag[i-j][2])
-                i += 1
-                continue
-            elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
-                W1_averages.append(np.average(W1_list))
-                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                W2_averages.append(np.average(W2_list))
-                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                mjd_date_.append(W1_mag[i-1-k][1])
-                if p == m:
-                    one_epoch_W1 = W1_list
-                    one_epoch_W1_unc = W1_unc_list
-                    one_epoch_W2 = W2_list
-                    one_epoch_W2_unc = W2_unc_list
-                    mjd_value = W1_mag[i-1-k][1]
-                    p += 1
-                i += 1
-                p += 1
-                continue
-            elif x == 0: #checking two adjacent W2 data points are in the same epoch.
-                y = 0
-                if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            elif y == 0: #Two adjacent W2 data points were in different epochs. Check to see if two adjacent W1 data points are in same epoch
-                x = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            else:
-                x = 0
-                y = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in this example; AA, Bc, UX, AA)
-                    if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W1_mag[i-1-k][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i-1-k][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading.
-                    if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W2_mag[i-1-j][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W2_mag[i-1-j][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                else:
-                    print('flag') #this path shouldn't ever be used.
-elif len(W1_mag) < len(W2_mag):
-    i = 0
-    j = 0
-    k = 0
-    x = 0 #skip flag for W2
-    y = 0 #skip flag for W1
-    p = 0
-    while i-j+1 < len(W2_mag):
-        if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
-            if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
-                x += 1
-                if i == 0:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    j += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    j += 1
-                    i += 1
-                    p += 1
-                    continue
-            elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
-                y += 1
-                if i == 0:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-                elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    k += 1
-                    i += 1
-                    p += 1
-                    continue
-        else: #mjd dates are the same
-            if i == 0:
-                W1_list.append(W1_mag[i-k][0])
-                W1_unc_list.append(W1_mag[i-k][2])
-                W2_list.append(W2_mag[i-j][0])
-                W2_unc_list.append(W2_mag[i-j][2])
-                i += 1
-                continue
-            elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
-                W1_averages.append(np.average(W1_list))
-                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                W2_averages.append(np.average(W2_list))
-                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                mjd_date_.append(W1_mag[i-1-k][1])
-                if p == m:
-                    one_epoch_W1 = W1_list
-                    one_epoch_W1_unc = W1_unc_list
-                    one_epoch_W2 = W2_list
-                    one_epoch_W2_unc = W2_unc_list
-                    mjd_value = W1_mag[i-1-k][1]
-                    p += 1
-                i += 1
-                p += 1
-                continue
-            elif x == 0: #confirming two adjacent W2 data points are in the same epoch
-                y = 0
-                if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W2_mag[i-1-j][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W2_mag[i-1-j][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            elif y == 0:
-                x = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    continue
-                else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                    W1_averages.append(np.average(W1_list))
-                    W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                    W2_averages.append(np.average(W2_list))
-                    W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                    mjd_date_.append(W1_mag[i-1-k][1])
-                    if p == m:
-                        one_epoch_W1 = W1_list
-                        one_epoch_W1_unc = W1_unc_list
-                        one_epoch_W2 = W2_list
-                        one_epoch_W2_unc = W2_unc_list
-                        mjd_value = W1_mag[i-1-k][1]
-                        p += 1
-                    W1_list = []
-                    W1_unc_list = []
-                    W2_list = []
-                    W2_unc_list = []
-                    W1_list.append(W1_mag[i-k][0])
-                    W1_unc_list.append(W1_mag[i-k][2])
-                    W2_list.append(W2_mag[i-j][0])
-                    W2_unc_list.append(W2_mag[i-j][2])
-                    i += 1
-                    p += 1
-                    continue
-            else:
-                x = 0
-                y = 0
-                if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
-                    if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W1_mag[i-1-k][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W1_mag[i-1-k][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
-                    if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        continue
-                    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                        W1_averages.append(np.average(W1_list))
-                        W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-                        W2_averages.append(np.average(W2_list))
-                        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-                        mjd_date_.append(W2_mag[i-1-j][1])
-                        if p == m:
-                            one_epoch_W1 = W1_list
-                            one_epoch_W1_unc = W1_unc_list
-                            one_epoch_W2 = W2_list
-                            one_epoch_W2_unc = W2_unc_list
-                            mjd_value = W2_mag[i-1-j][1]
-                            p += 1
-                        W1_list = []
-                        W1_unc_list = []
-                        W2_list = []
-                        W2_unc_list = []
-                        W1_list.append(W1_mag[i-k][0])
-                        W1_unc_list.append(W1_mag[i-k][2])
-                        W2_list.append(W2_mag[i-j][0])
-                        W2_unc_list.append(W2_mag[i-j][2])
-                        i += 1
-                        p += 1
-                        continue
-                else:
-                    print('flag') #this path shouldn't ever be used.
-
-#PTF averaging
-g_list = []
-g_unc_list = []
-g_av_mag = []
-g_av_uncs = []
-mjd_list_g = []
-mjd_date_g_epoch = []
-one_epoch_g = []
-one_epoch_g_unc = []
-m = 0 #select an epoch, for both g & r band
 p = 0
-for i in range(len(PTF_mag_g)):
-    if i == 0:
-        g_list.append(PTF_mag_g[i])
-        g_unc_list.append(PTF_unc_g[i])
-        mjd_list_g.append(mjd_date_PTF_g[i])
+for i in range(len(W2_mag)):
+    if i == 0: #first reading - store and move on
+        W2_list.append(W2_mag[i][0])
+        W2_mjds.append(W2_mag[i][1])
+        W2_unc_list.append(W2_mag[i][2])
         continue
-    elif i == len(PTF_mag_g) - 1: #if final data point, close the epoch
-        g_av_mag.append(np.average(g_list))
-        g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
-        mjd_date_g_epoch.append(np.average(mjd_list_g))
+    elif i == len(W2_mag) - 1: #if final data point, close the epoch
+        W2_list.append(W2_mag[i][0])
+        W2_mjds.append(W2_mag[i][1])
+        W2_unc_list.append(W2_mag[i][2])
+        W2_averages.append(np.average(W2_list))
+        W2_av_mjd_date.append(np.average(W2_mjds))
+        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
         if p == m:
-            one_epoch_g = g_list
-            one_epoch_g_unc = g_unc_list
-            one_epoch_g_mjd = mjd_list_g
+            one_epoch_W2 = W2_list
+            one_epoch_W2_unc = W2_unc_list
+            mjd_value = W2_mag[i][1]
             p += 1
+        p += 1
         continue
-    elif mjd_date_PTF_g[i] - mjd_date_PTF_g[i-1] < 100:
-        g_list.append(PTF_mag_g[i])
-        g_unc_list.append(PTF_unc_g[i])
-        mjd_list_g.append(mjd_date_PTF_g[i])
+    elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
+        W2_list.append(W2_mag[i][0])
+        W2_mjds.append(W2_mag[i][1])
+        W2_unc_list.append(W2_mag[i][2])
         continue
     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-        g_av_mag.append(np.average(g_list))
-        g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
-        mjd_date_g_epoch.append(np.average(mjd_list_g))
+        W2_averages.append(np.average(W2_list))
+        W2_av_mjd_date.append(np.average(W2_mjds))
+        W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
         if p == m:
-            one_epoch_g = g_list
-            one_epoch_g_unc = g_unc_list
-            one_epoch_g_mjd = mjd_list_g
+            one_epoch_W2 = W2_list
+            one_epoch_W2_unc = W2_unc_list
+            mjd_value = W2_mag[i][1]
             p += 1
-        g_list = []
-        g_unc_list = []
-        mjd_list_g = []
-        g_list.append(PTF_mag_g[i])
-        g_unc_list.append(PTF_unc_g[i])
-        mjd_list_g.append(mjd_date_PTF_g[i])
+        W2_list = []
+        W2_mjds = []
+        W2_unc_list = []
+        W2_list.append(W2_mag[i][0])
+        W2_mjds.append(W2_mag[i][1])
+        W2_unc_list.append(W2_mag[i][2])
         p += 1
         continue
 
-r_list = []
-r_unc_list = []
-r_av_mag = []
-r_av_uncs = []
-mjd_list_r = []
-mjd_date_r_epoch = []
-one_epoch_r = []
-one_epoch_r_unc = []
-m = 1
-p = 0
-for i in range(len(PTF_mag_r)):
-    if i == 0:
-        r_list.append(PTF_mag_r[i])
-        r_unc_list.append(PTF_unc_r[i])
-        mjd_list_r.append(mjd_date_PTF_r[i])
-        continue
-    elif i == len(PTF_mag_r) - 1:
-        r_av_mag.append(np.average(r_list))
-        r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
-        mjd_date_r_epoch.append(np.average(mjd_list_r))
-        if p == m:
-            one_epoch_r = r_list
-            one_epoch_r_unc = r_unc_list
-            one_epoch_r_mjd = mjd_list_r
-            p += 1
-    elif mjd_date_PTF_r[i] - mjd_date_PTF_r[i-1] < 100:
-        r_list.append(PTF_mag_r[i])
-        r_unc_list.append(PTF_unc_r[i])
-        mjd_list_r.append(mjd_date_PTF_r[i])
-        continue
-    else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-        r_av_mag.append(np.average(r_list))
-        r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
-        mjd_date_r_epoch.append(np.average(mjd_list_r))
-        if p == m:
-            one_epoch_r = r_list
-            one_epoch_r_unc = r_unc_list
-            one_epoch_r_mjd = mjd_list_r
-            p += 1
-        r_list = []
-        r_unc_list = []
-        mjd_list_r = []
-        r_list.append(PTF_mag_r[i])
-        r_unc_list.append(PTF_unc_r[i])
-        mjd_list_r.append(mjd_date_PTF_r[i])
-        p += 1
-        continue
+
+
+# W1_list = []
+# W2_list = []
+# W1_unc_list = []
+# W2_unc_list = []
+# W1_averages= []
+# W2_averages = []
+# W1_av_uncs = []
+# W2_av_uncs = []
+# mjd_date_ = []
+# one_epoch_W1 = []
+# one_epoch_W1_unc = []
+# one_epoch_W2 = []
+# one_epoch_W2_unc = []
+# m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+# if len(W1_mag) == len(W2_mag):
+#     i = 0
+#     j = 0
+#     k = 0
+#     x = 0 #skip flag for W2
+#     y = 0 #skip flag for W1
+#     p = 0
+#     while i-k+1 < len(W1_mag):
+#         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
+#             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
+#                 x += 1
+#                 if i == 0:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list)))) #see derivation in week 5 folder.
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1]) #Assumes that the mjd dates are so close that any difference between them is negligible
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
+#                 y += 1
+#                 if i == 0:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#         else: #mjd dates are the same
+#             if i == 0:
+#                 W1_list.append(W1_mag[i-k][0])
+#                 W1_unc_list.append(W1_mag[i-k][2])
+#                 W2_list.append(W2_mag[i-j][0])
+#                 W2_unc_list.append(W2_mag[i-j][2])
+#                 i += 1
+#                 continue
+#             elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                 W1_averages.append(np.average(W1_list))
+#                 W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                 W2_averages.append(np.average(W2_list))
+#                 W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                 mjd_date_.append(W1_mag[i-1-k][1])
+#                 if p == m:
+#                     one_epoch_W1 = W1_list
+#                     one_epoch_W1_unc = W1_unc_list
+#                     one_epoch_W2 = W2_list
+#                     one_epoch_W2_unc = W2_unc_list
+#                     mjd_value = W1_mag[i-1-k][1]
+#                     p += 1
+#                 i += 1
+#                 p += 1
+#                 continue
+#             elif x == 0: #checking two adjacent W2 data points are in the same epoch.
+#                 y = 0
+#                 if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif y == 0:
+#                 x = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             else: #This happens if the data goes BB, CB, BC, AA (and ph_qual lim set to >= B)
+#                 #All valid data points have already been stored. W1_mag[i-k] & W2_mag[i-j] corresponds to the AA data point in the example above
+#                 x = 0
+#                 y = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
+#                     if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W1_mag[i-1-k][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W1_mag[i-1-k][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
+#                     if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W2_mag[i-1-j][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W2_mag[i-1-j][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 else:
+#                     print('flag') #this path shouldn't ever be used.
+# elif len(W1_mag) > len(W2_mag):
+#     i = 0
+#     j = 0
+#     k = 0
+#     x = 0 #skip flag for W2
+#     y = 0 #skip flag for W1
+#     p = 0 #for grabbing only one epoch's data
+#     while i-k+1 < len(W1_mag):
+#         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
+#             if W2_mag[i-j][1] > W1_mag[i-k][1]:
+#                 x += 1
+#                 if i == 0:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1]) #i-1 because want to select the previous epoch's date
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0]) #this is where it's getting fucked up
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
+#                 y += 1
+#                 if i == 0:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1]) 
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#         else: #mjd dates are the same
+#             if i == 0:
+#                 W1_list.append(W1_mag[i-k][0])
+#                 W1_unc_list.append(W1_mag[i-k][2])
+#                 W2_list.append(W2_mag[i-j][0])
+#                 W2_unc_list.append(W2_mag[i-j][2])
+#                 i += 1
+#                 continue
+#             elif i-k+1 == len(W1_mag) - 1: #if final data point, close the epoch
+#                 W1_averages.append(np.average(W1_list))
+#                 W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                 W2_averages.append(np.average(W2_list))
+#                 W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                 mjd_date_.append(W1_mag[i-1-k][1])
+#                 if p == m:
+#                     one_epoch_W1 = W1_list
+#                     one_epoch_W1_unc = W1_unc_list
+#                     one_epoch_W2 = W2_list
+#                     one_epoch_W2_unc = W2_unc_list
+#                     mjd_value = W1_mag[i-1-k][1]
+#                     p += 1
+#                 i += 1
+#                 p += 1
+#                 continue
+#             elif x == 0: #checking two adjacent W2 data points are in the same epoch.
+#                 y = 0
+#                 if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif y == 0: #Two adjacent W2 data points were in different epochs. Check to see if two adjacent W1 data points are in same epoch
+#                 x = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             else:
+#                 x = 0
+#                 y = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in this example; AA, Bc, UX, AA)
+#                     if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W1_mag[i-1-k][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W1_mag[i-1-k][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading.
+#                     if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W2_mag[i-1-j][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W2_mag[i-1-j][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 else:
+#                     print('flag') #this path shouldn't ever be used.
+# elif len(W1_mag) < len(W2_mag):
+#     i = 0
+#     j = 0
+#     k = 0
+#     x = 0 #skip flag for W2
+#     y = 0 #skip flag for W1
+#     p = 0
+#     while i-j+1 < len(W2_mag):
+#         if W2_mag[i-j][1] != W1_mag[i-k][1]: #checking if mjd dates are the same.
+#             if W2_mag[i-j][1] > W1_mag[i-k][1]: #This means W2 list has skipped a reading (ie the skipped one had bad SNR)
+#                 x += 1
+#                 if i == 0:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100: #can guarantee W1_mag[i-k] & W_mag[i-k-1] are in the same epoch.
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     j += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     j += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif W2_mag[i-j][1] < W1_mag[i-k][1]: #This means W1 list has skipped a reading (ie the skipped one had bad SNR)
+#                 y += 1
+#                 if i == 0:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#                 elif W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     k += 1
+#                     i += 1
+#                     p += 1
+#                     continue
+#         else: #mjd dates are the same
+#             if i == 0:
+#                 W1_list.append(W1_mag[i-k][0])
+#                 W1_unc_list.append(W1_mag[i-k][2])
+#                 W2_list.append(W2_mag[i-j][0])
+#                 W2_unc_list.append(W2_mag[i-j][2])
+#                 i += 1
+#                 continue
+#             elif i-j+1 == len(W2_mag) - 1: #if final data point, close the epoch
+#                 W1_averages.append(np.average(W1_list))
+#                 W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                 W2_averages.append(np.average(W2_list))
+#                 W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                 mjd_date_.append(W1_mag[i-1-k][1])
+#                 if p == m:
+#                     one_epoch_W1 = W1_list
+#                     one_epoch_W1_unc = W1_unc_list
+#                     one_epoch_W2 = W2_list
+#                     one_epoch_W2_unc = W2_unc_list
+#                     mjd_value = W1_mag[i-1-k][1]
+#                     p += 1
+#                 i += 1
+#                 p += 1
+#                 continue
+#             elif x == 0: #confirming two adjacent W2 data points are in the same epoch
+#                 y = 0
+#                 if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W2_mag[i-1-j][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W2_mag[i-1-j][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             elif y == 0:
+#                 x = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     continue
+#                 else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                     W1_averages.append(np.average(W1_list))
+#                     W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                     W2_averages.append(np.average(W2_list))
+#                     W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                     mjd_date_.append(W1_mag[i-1-k][1])
+#                     if p == m:
+#                         one_epoch_W1 = W1_list
+#                         one_epoch_W1_unc = W1_unc_list
+#                         one_epoch_W2 = W2_list
+#                         one_epoch_W2_unc = W2_unc_list
+#                         mjd_value = W1_mag[i-1-k][1]
+#                         p += 1
+#                     W1_list = []
+#                     W1_unc_list = []
+#                     W2_list = []
+#                     W2_unc_list = []
+#                     W1_list.append(W1_mag[i-k][0])
+#                     W1_unc_list.append(W1_mag[i-k][2])
+#                     W2_list.append(W2_mag[i-j][0])
+#                     W2_unc_list.append(W2_mag[i-j][2])
+#                     i += 1
+#                     p += 1
+#                     continue
+#             else:
+#                 x = 0
+#                 y = 0
+#                 if W1_mag[i-k][1] - W1_mag[i-k-1][1] < W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
+#                     if W1_mag[i-k][1] - W1_mag[i-k-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W1_mag[i-1-k][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W1_mag[i-1-k][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 elif W1_mag[i-k][1] - W1_mag[i-k-1][1] > W2_mag[i-j][1] - W2_mag[i-j-1][1]: #checking if W1 or W2 had the previous valid reading (would be W1 in example above; Bc then AA)
+#                     if W2_mag[i-j][1] - W2_mag[i-j-1][1] < 100:
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         continue
+#                     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#                         W1_averages.append(np.average(W1_list))
+#                         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+#                         W2_averages.append(np.average(W2_list))
+#                         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+#                         mjd_date_.append(W2_mag[i-1-j][1])
+#                         if p == m:
+#                             one_epoch_W1 = W1_list
+#                             one_epoch_W1_unc = W1_unc_list
+#                             one_epoch_W2 = W2_list
+#                             one_epoch_W2_unc = W2_unc_list
+#                             mjd_value = W2_mag[i-1-j][1]
+#                             p += 1
+#                         W1_list = []
+#                         W1_unc_list = []
+#                         W2_list = []
+#                         W2_unc_list = []
+#                         W1_list.append(W1_mag[i-k][0])
+#                         W1_unc_list.append(W1_mag[i-k][2])
+#                         W2_list.append(W2_mag[i-j][0])
+#                         W2_unc_list.append(W2_mag[i-j][2])
+#                         i += 1
+#                         p += 1
+#                         continue
+#                 else:
+#                     print('flag') #this path shouldn't ever be used.
+
+# #PTF averaging
+# g_list = []
+# g_unc_list = []
+# g_av_mag = []
+# g_av_uncs = []
+# mjd_list_g = []
+# mjd_date_g_epoch = []
+# one_epoch_g = []
+# one_epoch_g_unc = []
+# m = 0 #select an epoch, for both g & r band
+# p = 0
+# for i in range(len(PTF_mag_g)):
+#     if i == 0:
+#         g_list.append(PTF_mag_g[i])
+#         g_unc_list.append(PTF_unc_g[i])
+#         mjd_list_g.append(mjd_date_PTF_g[i])
+#         continue
+#     elif i == len(PTF_mag_g) - 1: #if final data point, close the epoch
+#         g_av_mag.append(np.average(g_list))
+#         g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
+#         mjd_date_g_epoch.append(np.average(mjd_list_g))
+#         if p == m:
+#             one_epoch_g = g_list
+#             one_epoch_g_unc = g_unc_list
+#             one_epoch_g_mjd = mjd_list_g
+#             p += 1
+#         continue
+#     elif mjd_date_PTF_g[i] - mjd_date_PTF_g[i-1] < 100:
+#         g_list.append(PTF_mag_g[i])
+#         g_unc_list.append(PTF_unc_g[i])
+#         mjd_list_g.append(mjd_date_PTF_g[i])
+#         continue
+#     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#         g_av_mag.append(np.average(g_list))
+#         g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
+#         mjd_date_g_epoch.append(np.average(mjd_list_g))
+#         if p == m:
+#             one_epoch_g = g_list
+#             one_epoch_g_unc = g_unc_list
+#             one_epoch_g_mjd = mjd_list_g
+#             p += 1
+#         g_list = []
+#         g_unc_list = []
+#         mjd_list_g = []
+#         g_list.append(PTF_mag_g[i])
+#         g_unc_list.append(PTF_unc_g[i])
+#         mjd_list_g.append(mjd_date_PTF_g[i])
+#         p += 1
+#         continue
+
+# r_list = []
+# r_unc_list = []
+# r_av_mag = []
+# r_av_uncs = []
+# mjd_list_r = []
+# mjd_date_r_epoch = []
+# one_epoch_r = []
+# one_epoch_r_unc = []
+# m = 1
+# p = 0
+# for i in range(len(PTF_mag_r)):
+#     if i == 0:
+#         r_list.append(PTF_mag_r[i])
+#         r_unc_list.append(PTF_unc_r[i])
+#         mjd_list_r.append(mjd_date_PTF_r[i])
+#         continue
+#     elif i == len(PTF_mag_r) - 1:
+#         r_av_mag.append(np.average(r_list))
+#         r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
+#         mjd_date_r_epoch.append(np.average(mjd_list_r))
+#         if p == m:
+#             one_epoch_r = r_list
+#             one_epoch_r_unc = r_unc_list
+#             one_epoch_r_mjd = mjd_list_r
+#             p += 1
+#     elif mjd_date_PTF_r[i] - mjd_date_PTF_r[i-1] < 100:
+#         r_list.append(PTF_mag_r[i])
+#         r_unc_list.append(PTF_unc_r[i])
+#         mjd_list_r.append(mjd_date_PTF_r[i])
+#         continue
+#     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+#         r_av_mag.append(np.average(r_list))
+#         r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
+#         mjd_date_r_epoch.append(np.average(mjd_list_r))
+#         if p == m:
+#             one_epoch_r = r_list
+#             one_epoch_r_unc = r_unc_list
+#             one_epoch_r_mjd = mjd_list_r
+#             p += 1
+#         r_list = []
+#         r_unc_list = []
+#         mjd_list_r = []
+#         r_list.append(PTF_mag_r[i])
+#         r_unc_list.append(PTF_unc_r[i])
+#         mjd_list_r.append(mjd_date_PTF_r[i])
+#         p += 1
+#         continue
 
 #Changing mjd date to days since start:
-# min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], mjd_date_[0]])
-min_mjd = mjd_date_[0]
+# min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], W1_av_mjd_date[0], W2_av_mjd_date[0]])
+min_mjd = min([W1_av_mjd_date[0], W2_av_mjd_date[0]])
 SDSS_mjd = SDSS_mjd - min_mjd
 DESI_mjd = DESI_mjd - min_mjd
-mjd_date_g_epoch = [date - min_mjd for date in mjd_date_g_epoch]
-mjd_date_r_epoch = [date - min_mjd for date in mjd_date_r_epoch]
+# mjd_date_g_epoch = [date - min_mjd for date in mjd_date_g_epoch]
+# mjd_date_r_epoch = [date - min_mjd for date in mjd_date_r_epoch]
 mjd_value = mjd_value - min_mjd
-mjd_date_ = [date - min_mjd for date in mjd_date_]
+W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
+W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
-print(f'Number of MIR epochs = {len(W1_averages)}')
+print(f'Number of MIR W1 epochs = {len(W1_averages)}')
+print(f'Number of MIR W2 epochs = {len(W2_averages)}')
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -1212,61 +1325,75 @@ r_wl = 0.616e4
 
 W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
-g_averages_flux = [flux(mag, g_k, g_wl) for mag in g_av_mag]
-r_averages_flux = [flux(mag, r_k, r_wl) for mag in r_av_mag]
+# g_averages_flux = [flux(mag, g_k, g_wl) for mag in g_av_mag]
+# r_averages_flux = [flux(mag, r_k, r_wl) for mag in r_av_mag]
 W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
-g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
-r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
+# g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
+# r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
 
 #Selecting the 2 points either side of SDSS & DESI
-if SDSS_mjd <= mjd_date_[0]:
+if SDSS_mjd <= W1_av_mjd_date[0]:
     print("SDSS observation was before WISE observation.")
-elif SDSS_mjd >= mjd_date_[-1]:
+elif SDSS_mjd >= W1_av_mjd_date[-1]:
     print("SDSS observation was after WISE observation.") #Not possible
 else:
-    before_SDSS_index = max(i for i in range(len(mjd_date_)) if mjd_date_[i] <= SDSS_mjd)
-    after_SDSS_index = min(i for i in range(len(mjd_date_)) if mjd_date_[i] > SDSS_mjd)
+    before_SDSS_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= SDSS_mjd) #different for W1 & W2 in case there are a different number of W1 & W2 epochs
+    after_SDSS_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > SDSS_mjd)
+    before_SDSS_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= SDSS_mjd)
+    after_SDSS_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > SDSS_mjd)
 
-if DESI_mjd <= mjd_date_[0]:
+if DESI_mjd <= W1_av_mjd_date[0]:
     print("DESI observation was before WISE observation.") #Not possible
-elif DESI_mjd >= mjd_date_[-1]:
+elif DESI_mjd >= W1_av_mjd_date[-1]:
     print("DESI observation was after WISE observation.")
 else:
-    before_DESI_index = max(i for i in range(len(mjd_date_)) if mjd_date_[i] <= DESI_mjd)
-    after_DESI_index = min(i for i in range(len(mjd_date_)) if mjd_date_[i] > DESI_mjd)
+    before_DESI_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= DESI_mjd)
+    after_DESI_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > DESI_mjd)
+    before_DESI_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= DESI_mjd)
+    after_DESI_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > DESI_mjd)
 
-print (f'W1 - Before SDSS z score relative to before DESI observation - {(W1_averages_flux[before_SDSS_index]-W1_averages_flux[before_DESI_index])/(W1_av_uncs_flux[before_DESI_index])}')
-print (f'W1 - After SDSS z score relative to before DESI observation - {(W1_averages_flux[after_SDSS_index]-W1_averages_flux[before_DESI_index])/(W1_av_uncs_flux[before_DESI_index])}')
-print (f'W1 - Before SDSS z score relative to after DESI observation - {(W1_averages_flux[before_SDSS_index]-W1_averages_flux[after_DESI_index])/(W1_av_uncs_flux[after_DESI_index])}')
-print (f'W1 - After SDSS z score relative to after DESI observation - {(W1_averages_flux[after_SDSS_index]-W1_averages_flux[after_DESI_index])/(W1_av_uncs_flux[after_DESI_index])}')
+#If uncertainty = nan; then z score = nan
+#If uncertainty = 0; then z score = inf
+print (f'W1 - Before SDSS z score relative to before DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
+print (f'W1 - After SDSS z score relative to before DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
+print (f'W1 - Before SDSS z score relative to after DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
+print (f'W1 - After SDSS z score relative to after DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
+print (f'W1 - Before DESI z score relative to before SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
+print (f'W1 - After DESI z score relative to before SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
+print (f'W1 - Before DESI z score relative to after SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
+print (f'W1 - After DESI z score relative to after SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
 
-print (f'W2 - Before SDSS z score relative to before DESI observation - {(W2_averages_flux[before_SDSS_index]-W2_averages_flux[before_DESI_index])/(W2_av_uncs_flux[before_DESI_index])}')
-print (f'W2 - After SDSS z score relative to before DESI observation - {(W2_averages_flux[after_SDSS_index]-W2_averages_flux[before_DESI_index])/(W2_av_uncs_flux[before_DESI_index])}')
-print (f'W2 - Before SDSS z score relative to after DESI observation - {(W2_averages_flux[before_SDSS_index]-W2_averages_flux[after_DESI_index])/(W2_av_uncs_flux[after_DESI_index])}')
-print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_averages_flux[after_SDSS_index]-W2_averages_flux[after_DESI_index])/(W2_av_uncs_flux[after_DESI_index])}')
+print (f'W2 - Before SDSS z score relative to before DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
+print (f'W2 - After SDSS z score relative to before DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
+print (f'W2 - Before SDSS z score relative to after DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
+print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
+print (f'W2 - Before DESI z score relative to before SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
+print (f'W2 - After DESI z score relative to before SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
+print (f'W2 - Before DESI z score relative to after SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
+print (f'W2 - After DESI z score relative to after SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
 
-# # Plotting average W1 & W2 mags (or flux) vs days since first observation
-# plt.figure(figsize=(14,6))
-# # # Mag
-# # plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
-# # plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-# # Flux
-# plt.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
-# plt.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-# # # Vertical line for SDSS & DESI dates:
-# # plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
-# # plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
-# # Labels and Titles
-# plt.xlabel('Days since first observation')
-# # # Mag
-# # plt.ylabel('Magnitude')
-# # plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
-# # Flux
-# plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# plt.title(f'W1 & W2 Flux vs Time (NGC 1068)')
-# plt.legend(loc = 'upper left')
-# plt.show()
+# Plotting average W1 & W2 mags (or flux) vs days since first observation
+plt.figure(figsize=(12,7))
+# # Mag
+# plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+# plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
+# Flux
+plt.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+plt.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
+# # Vertical line for SDSS & DESI dates:
+plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
+plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
+# Labels and Titles
+plt.xlabel('Days since first observation')
+# # Mag
+# plt.ylabel('Magnitude')
+# plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
+# Flux
+plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+plt.title(f'W1 & W2 Flux vs Time ({object_name})')
+plt.legend(loc = 'best')
+plt.show()
 
 
 # # Plotting colour (W1 mag[average] - W2 mag[average]):
@@ -1404,8 +1531,8 @@ print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_avera
 
 # # Top plot spanning two columns and three rows (ax1)
 # ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-# ax1.errorbar(mjd_date_, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax1.errorbar(mjd_date_, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
 # # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
 # # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
 # ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
