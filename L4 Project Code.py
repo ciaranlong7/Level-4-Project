@@ -28,6 +28,9 @@ object_name = '152517.57+401357.6' #Object A
 # object_name = '020942.78-042830.3'
 # object_name = '020153.27-050840.2'
 
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
     MIR_SNR = 'A'
@@ -497,45 +500,90 @@ else:
 
 #If uncertainty = nan; then z score = nan
 #If uncertainty = 0; then z score = inf
-print (f'W1 - Before SDSS z score relative to before DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
-print (f'W1 - After SDSS z score relative to before DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
-print (f'W1 - Before SDSS z score relative to after DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
-print (f'W1 - After SDSS z score relative to after DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
-print (f'W1 - Before DESI z score relative to before SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
-print (f'W1 - After DESI z score relative to before SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
-print (f'W1 - Before DESI z score relative to after SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
-print (f'W1 - After DESI z score relative to after SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
+# print (f'W1 - Before SDSS z score relative to before DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
+# print (f'W1 - After SDSS z score relative to before DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1])}')
+# print (f'W1 - Before SDSS z score relative to after DESI observation - {(W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
+# print (f'W1 - After SDSS z score relative to after DESI observation - {(W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1])}')
+# print (f'W1 - Before DESI z score relative to before SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
+# print (f'W1 - After DESI z score relative to before SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1])}')
+# print (f'W1 - Before DESI z score relative to after SDSS observation - {(W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
+# print (f'W1 - After DESI z score relative to after SDSS observation - {(W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1])}')
 
-print (f'W2 - Before SDSS z score relative to before DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
-print (f'W2 - After SDSS z score relative to before DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
-print (f'W2 - Before SDSS z score relative to after DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
-print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
-print (f'W2 - Before DESI z score relative to before SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
-print (f'W2 - After DESI z score relative to before SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
-print (f'W2 - Before DESI z score relative to after SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
-print (f'W2 - After DESI z score relative to after SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
+# print (f'W2 - Before SDSS z score relative to before DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
+# print (f'W2 - After SDSS z score relative to before DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2])}')
+# print (f'W2 - Before SDSS z score relative to after DESI observation - {(W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
+# print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2])}')
+# print (f'W2 - Before DESI z score relative to before SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
+# print (f'W2 - After DESI z score relative to before SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2])}')
+# print (f'W2 - Before DESI z score relative to after SDSS observation - {(W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
+# print (f'W2 - After DESI z score relative to after SDSS observation - {(W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2])}')
 
-# Plotting average W1 & W2 mags (or flux) vs days since first observation
-plt.figure(figsize=(12,7))
-# # Mag
-# plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-# plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
-# Flux
-plt.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
-plt.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
-# # Vertical line for SDSS & DESI dates:
-plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
-plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
-# Labels and Titles
-plt.xlabel('Days since first observation')
-# # Mag
-# plt.ylabel('Magnitude')
-# plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
-# Flux
-plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-plt.title(f'W1 & W2 Flux vs Time ({object_name})')
-plt.legend(loc = 'best')
-plt.show()
+W1_b_SDSS_b_DESI = []
+W1_a_SDSS_b_DESI = []
+W1_b_SDSS_a_DESI = []
+W1_a_SDSS_a_DESI = []
+W1_b_DESI_b_SDSS = []
+W1_a_DESI_b_SDSS = []
+W1_b_DESI_a_SDSS = []
+W1_a_DESI_a_SDSS = []
+
+W2_b_SDSS_b_DESI = []
+W2_a_SDSS_b_DESI = []
+W2_b_SDSS_a_DESI = []
+W2_a_SDSS_a_DESI = []
+W2_b_DESI_b_SDSS = []
+W2_a_DESI_b_SDSS = []
+W2_b_DESI_a_SDSS = []
+W2_a_DESI_a_SDSS = []
+
+z_score_data = {
+    "W1 Before SDSS vs Before DESI": W1_b_SDSS_b_DESI,
+    "W1 Before SDSS vs Before DESI": W1_a_SDSS_b_DESI,
+    "W1 Before SDSS vs Before DESI": W1_b_SDSS_a_DESI,
+    "W1 Before SDSS vs Before DESI": W1_a_SDSS_a_DESI,
+    "W1 Before SDSS vs Before DESI": W1_b_DESI_b_SDSS,
+    "W1 Before SDSS vs Before DESI": W1_a_DESI_b_SDSS,
+    "W1 Before SDSS vs Before DESI": W1_b_DESI_a_SDSS,
+    "W1 Before SDSS vs Before DESI": W1_a_DESI_a_SDSS,
+
+    "W2 Before SDSS vs Before DESI": W2_b_SDSS_b_DESI,
+    "W2 Before SDSS vs Before DESI": W2_a_SDSS_b_DESI,
+    "W2 Before SDSS vs Before DESI": W2_b_SDSS_a_DESI,
+    "W2 Before SDSS vs Before DESI": W2_a_SDSS_a_DESI,
+    "W2 Before SDSS vs Before DESI": W2_b_DESI_b_SDSS,
+    "W2 Before SDSS vs Before DESI": W2_a_DESI_b_SDSS,
+    "W2 Before SDSS vs Before DESI": W2_b_DESI_a_SDSS,
+    "W2 Before SDSS vs Before DESI": W2_a_DESI_a_SDSS,
+}
+
+# Convert the data into a DataFrame
+# df = pd.DataFrame(z_score_data)
+
+# #Creating a csv file of my data
+# df.to_csv("CLAGN_z_scores.csv", index=False)
+
+
+# # Plotting average W1 & W2 mags (or flux) vs days since first observation
+# plt.figure(figsize=(12,7))
+# # # Mag
+# # plt.errorbar(mjd_date_, W2_averages, yerr=W2_av_uncs, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+# # plt.errorbar(mjd_date_, W1_averages, yerr=W1_av_uncs, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)') # fmt='o' makes the data points appear as circles.
+# # Flux
+# plt.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color = 'blue', capsize=5, label = u'W2 (4.6 \u03bcm)')
+# plt.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color = 'orange', capsize=5, label = u'W1 (3.4 \u03bcm)')
+# # # Vertical line for SDSS & DESI dates:
+# plt.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label = 'SDSS')
+# plt.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label = 'DESI')
+# # Labels and Titles
+# plt.xlabel('Days since first observation')
+# # # Mag
+# # plt.ylabel('Magnitude')
+# # plt.title(f'W1 & W2 magnitude vs Time (SNR \u2265 {Min_SNR})')
+# # Flux
+# plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# plt.title(f'W1 & W2 Flux vs Time ({object_name})')
+# plt.legend(loc = 'best')
+# plt.show()
 
 
 # # Plotting colour (W1 mag[average] - W2 mag[average]):
