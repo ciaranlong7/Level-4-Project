@@ -25,6 +25,9 @@ c = 299792458
 object_name = '152517.57+401357.6' #Object A
 # object_name = '141923.44-030458.7' #Object B
 # object_name = '115403.00+003154.0' #Object C
+object_name = '020942.78-042830.3'
+object_name = '020153.27-050840.2'
+
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
     MIR_SNR = 'A'
@@ -50,73 +53,73 @@ DESI_file = f'spectrum_desi_{object_name}.csv'
 # print('MIR Search (RA ±DEC):')
 # print(f'{SDSS_RA} {SDSS_DEC:+}')
 
-#Open the SDSS file
-SDSS_file_path = f'clagn_spectra/{SDSS_file}'
-# SDSS_file_path = 'spec-1678-53433-0425.fits' #NGC 1068 spectra
-with fits.open(SDSS_file_path) as hdul:
-    subset = hdul[1]
+# #Open the SDSS file
+# SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+# # SDSS_file_path = 'spec-1678-53433-0425.fits' #NGC 1068 spectra
+# with fits.open(SDSS_file_path) as hdul:
+#     subset = hdul[1]
 
-    sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
-    sdss_lamb = sdss_lamb*10**(-4) #Wavelength in microns
-    sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
+#     sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+#     sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+#     sdss_lamb = sdss_lamb*10**(-4) #Wavelength in microns
+#     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
-#Open the DESI file
-DESI_file_path = f'clagn_spectra/{DESI_file}'
-DESI_spec = pd.read_csv(DESI_file_path)
-desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-desi_lamb = desi_lamb*10**(-4) #converting to microns
-desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+# #Open the DESI file
+# DESI_file_path = f'clagn_spectra/{DESI_file}'
+# DESI_spec = pd.read_csv(DESI_file_path)
+# desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+# desi_lamb = desi_lamb*10**(-4) #converting to microns
+# desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
 
-ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
-sdss_flux = sdss_flux*ext_model.extinguish(sdss_lamb, Av=0.75)
-desi_flux = desi_flux*ext_model.extinguish(desi_lamb, Av=0.75)
+# ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
+# sdss_flux = sdss_flux*ext_model.extinguish(sdss_lamb, Av=0.75)
+# desi_flux = desi_flux*ext_model.extinguish(desi_lamb, Av=0.75)
 
-# Correcting for redshift.
-SDSS_z = object_data.iloc[0, 3]
-DESI_z = object_data.iloc[0, 10]
-sdss_lamb = (sdss_lamb/(1+SDSS_z))*10**(4) #converting back to angstroms now extinction correction is done
-desi_lamb = (desi_lamb/(1+DESI_z))*10**(4)
+# # Correcting for redshift.
+# SDSS_z = object_data.iloc[0, 3]
+# DESI_z = object_data.iloc[0, 10]
+# sdss_lamb = (sdss_lamb/(1+SDSS_z))*10**(4) #converting back to angstroms now extinction correction is done
+# desi_lamb = (desi_lamb/(1+DESI_z))*10**(4)
 
-#Calculate rolling average manually
-def rolling_average(arr, window_size):
+# #Calculate rolling average manually
+# def rolling_average(arr, window_size):
     
-    averages = []
-    for i in range(len(arr) - window_size + 1):
-        avg = np.mean(arr[i:i + window_size])
-        averages.append(avg)
-    return np.array(averages)
+#     averages = []
+#     for i in range(len(arr) - window_size + 1):
+#         avg = np.mean(arr[i:i + window_size])
+#         averages.append(avg)
+#     return np.array(averages)
 
-#Manual Rolling averages - only uncomment if using (otherwise cuts off first 9 data points)
-# SDSS_rolling = rolling_average(sdss_flux, 10)
-# DESI_rolling = rolling_average(desi_flux, 10)
-# sdss_lamb = sdss_lamb[9:]
-# desi_lamb = desi_lamb[9:]
-# sdss_flux = sdss_flux[9:]
-# desi_flux = desi_flux[9:]
+# #Manual Rolling averages - only uncomment if using (otherwise cuts off first 9 data points)
+# # SDSS_rolling = rolling_average(sdss_flux, 10)
+# # DESI_rolling = rolling_average(desi_flux, 10)
+# # sdss_lamb = sdss_lamb[9:]
+# # desi_lamb = desi_lamb[9:]
+# # sdss_flux = sdss_flux[9:]
+# # desi_flux = desi_flux[9:]
 
-# Gaussian smoothing
-# adjust stddev to control the degree of smoothing. Higher stddev means smoother
-# https://en.wikipedia.org/wiki/Gaussian_blur
-gaussian_kernel = Gaussian1DKernel(stddev=3)
+# # Gaussian smoothing
+# # adjust stddev to control the degree of smoothing. Higher stddev means smoother
+# # https://en.wikipedia.org/wiki/Gaussian_blur
+# gaussian_kernel = Gaussian1DKernel(stddev=3)
 
-# Smooth the flux data using the Gaussian kernel
-Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
-Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+# # Smooth the flux data using the Gaussian kernel
+# Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
+# Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
 
-#BELs
-H_alpha = 6562.7
-H_beta = 4861.35
-Mg2 = 2797
-C4 = 1548
-C3_ = 1908.734
-#NEL
-_O3_ = 5006.843 #underscores indicate square brackets
-#Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
-SDSS_min = min(sdss_lamb)
-SDSS_max = max(sdss_lamb)
-DESI_min = min(desi_lamb)
-DESI_max = max(desi_lamb)
+# #BELs
+# H_alpha = 6562.7
+# H_beta = 4861.35
+# Mg2 = 2797
+# C4 = 1548
+# C3_ = 1908.734
+# #NEL
+# _O3_ = 5006.843 #underscores indicate square brackets
+# #Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
+# SDSS_min = min(sdss_lamb)
+# SDSS_max = max(sdss_lamb)
+# DESI_min = min(desi_lamb)
+# DESI_max = max(desi_lamb)
 
 #Plot of SDSS & DESI Spectra
 # plt.figure(figsize=(12,7))
@@ -215,6 +218,12 @@ PTF_unc_g = filtered_PTF_rows_g.iloc[:, 2].tolist()
 mjd_date_PTF_r = filtered_PTF_rows_r.iloc[:, 0].tolist()
 PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
 PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
+
+print(f'Object Name = {object_name}')
+print(f'W1 data points = {len(W1_mag)}')
+print(f'W2 data points = {len(W2_mag)}')
+print(f'g data points = {len(PTF_mag_g)}')
+print(f'r data points = {len(PTF_mag_r)}')
 
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
 
@@ -1177,7 +1186,8 @@ for i in range(len(PTF_mag_r)):
         continue
 
 #Changing mjd date to days since start:
-min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], mjd_date_[0]])
+# min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], mjd_date_[0]])
+min_mjd = mjd_date_[0]
 SDSS_mjd = SDSS_mjd - min_mjd
 DESI_mjd = DESI_mjd - min_mjd
 mjd_date_g_epoch = [date - min_mjd for date in mjd_date_g_epoch]
@@ -1185,11 +1195,6 @@ mjd_date_r_epoch = [date - min_mjd for date in mjd_date_r_epoch]
 mjd_value = mjd_value - min_mjd
 mjd_date_ = [date - min_mjd for date in mjd_date_]
 
-print(f'Object Name = {object_name}')
-print(f'W1 data points = {len(W1_mag)}')
-print(f'W2 data points = {len(W2_mag)}')
-print(f'g data points = {len(PTF_mag_g)}')
-print(f'r data points = {len(PTF_mag_r)}')
 print(f'Number of MIR epochs = {len(W1_averages)}')
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. Taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
@@ -1213,6 +1218,33 @@ W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
 r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
+
+#Selecting the 2 points either side of SDSS & DESI
+if SDSS_mjd <= mjd_date_[0]:
+    print("SDSS observation was before WISE observation.")
+elif SDSS_mjd >= mjd_date_[-1]:
+    print("SDSS observation was after WISE observation.") #Not possible
+else:
+    before_SDSS_index = max(i for i in range(len(mjd_date_)) if mjd_date_[i] <= SDSS_mjd)
+    after_SDSS_index = min(i for i in range(len(mjd_date_)) if mjd_date_[i] > SDSS_mjd)
+
+if DESI_mjd <= mjd_date_[0]:
+    print("DESI observation was before WISE observation.") #Not possible
+elif DESI_mjd >= mjd_date_[-1]:
+    print("DESI observation was after WISE observation.")
+else:
+    before_DESI_index = max(i for i in range(len(mjd_date_)) if mjd_date_[i] <= DESI_mjd)
+    after_DESI_index = min(i for i in range(len(mjd_date_)) if mjd_date_[i] > DESI_mjd)
+
+print (f'W1 - Before SDSS z score relative to before DESI observation - {(W1_averages_flux[before_SDSS_index]-W1_averages_flux[before_DESI_index])/(W1_av_uncs_flux[before_DESI_index])}')
+print (f'W1 - After SDSS z score relative to before DESI observation - {(W1_averages_flux[after_SDSS_index]-W1_averages_flux[before_DESI_index])/(W1_av_uncs_flux[before_DESI_index])}')
+print (f'W1 - Before SDSS z score relative to after DESI observation - {(W1_averages_flux[before_SDSS_index]-W1_averages_flux[after_DESI_index])/(W1_av_uncs_flux[after_DESI_index])}')
+print (f'W1 - After SDSS z score relative to after DESI observation - {(W1_averages_flux[after_SDSS_index]-W1_averages_flux[after_DESI_index])/(W1_av_uncs_flux[after_DESI_index])}')
+
+print (f'W2 - Before SDSS z score relative to before DESI observation - {(W2_averages_flux[before_SDSS_index]-W2_averages_flux[before_DESI_index])/(W2_av_uncs_flux[before_DESI_index])}')
+print (f'W2 - After SDSS z score relative to before DESI observation - {(W2_averages_flux[after_SDSS_index]-W2_averages_flux[before_DESI_index])/(W2_av_uncs_flux[before_DESI_index])}')
+print (f'W2 - Before SDSS z score relative to after DESI observation - {(W2_averages_flux[before_SDSS_index]-W2_averages_flux[after_DESI_index])/(W2_av_uncs_flux[after_DESI_index])}')
+print (f'W2 - After SDSS z score relative to after DESI observation - {(W2_averages_flux[after_SDSS_index]-W2_averages_flux[after_DESI_index])/(W2_av_uncs_flux[after_DESI_index])}')
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(14,6))
