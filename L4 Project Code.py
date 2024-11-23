@@ -25,12 +25,13 @@ c = 299792458
 # object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
-object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
+# object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
 # object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '150210.72+522212.2' #Object G - chosen because not a CLAGN, but in AGN parent sample & has low z scores
 # object_name = '101536.17+221048.9' #Highly variable AGN object 1 (no SDSS reading in parent sample)
 # object_name = '090931.55-011233.3' #Highly variable AGN object 2 (no SDSS reading in parent sample)
+object_name = '134554.00+084537.3' #Interested in missing normalised flux change reading. Nb - there is no SDSS/DESI spectrum file for this object in the lsit claire sent me
 # object_name = '020942.78-042830.3'
 # object_name = '020153.27-050840.2'
 
@@ -75,49 +76,49 @@ DESI_file = f'spectrum_desi_{object_name}.csv'
 # print(f'{SDSS_RA} {SDSS_DEC:+}')
 
 #Open the SDSS file
-SDSS_file_path = f'clagn_spectra/{SDSS_file}'
-with fits.open(SDSS_file_path) as hdul:
-    subset = hdul[1]
+# SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+# with fits.open(SDSS_file_path) as hdul:
+#     subset = hdul[1]
 
-    sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
-    sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
+#     sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+#     sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+#     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
-    A_vu = hdul[0].header['REDDEN01']  # Median extinction in u-band
-    A_vg = hdul[0].header['REDDEN02']  # Median extinction in g-band
-    A_vr = hdul[0].header['REDDEN03']  # Median extinction in r-band
-    A_vi = hdul[0].header['REDDEN04']  # Median extinction in i-band
-    A_vz = hdul[0].header['REDDEN05']  # Median extinction in z-band
+#     A_vu = hdul[0].header['REDDEN01']  # Median extinction in u-band
+#     A_vg = hdul[0].header['REDDEN02']  # Median extinction in g-band
+#     A_vr = hdul[0].header['REDDEN03']  # Median extinction in r-band
+#     A_vi = hdul[0].header['REDDEN04']  # Median extinction in i-band
+#     A_vz = hdul[0].header['REDDEN05']  # Median extinction in z-band
 
-#Open the DESI file
-DESI_file_path = f'clagn_spectra/{DESI_file}'
-DESI_spec = pd.read_csv(DESI_file_path)
-desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+# #Open the DESI file
+# DESI_file_path = f'clagn_spectra/{DESI_file}'
+# DESI_spec = pd.read_csv(DESI_file_path)
+# desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+# desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
 
-E_BV1 = 0.86*(A_vu/4.239) # values taken from table 6 of Schlafly & Finkbeiner 2011. 0.86 value converts from an older E(B-V)_SFD model - see intro of Schlafly & Finkbeiner 2011
-E_BV2 = 0.86*(A_vg/3.303)
-E_BV3 = 0.86*(A_vr/2.285)
-E_BV4 = 0.86*(A_vi/1.698)
-E_BV5 = 0.86*(A_vz/1.263)
-mean_E_BV = np.average([E_BV1, E_BV2, E_BV3, E_BV4, E_BV5]) #Note, each of E_BVx are almost identical - calculating the mean reducing the effect of any rounding errors
+# # E_BV1 = 0.86*(A_vu/4.239) # values taken from table 6 of Schlafly & Finkbeiner 2011. 0.86 value converts from an older E(B-V)_SFD model - see intro of Schlafly & Finkbeiner 2011
+# # E_BV2 = 0.86*(A_vg/3.303)
+# # E_BV3 = 0.86*(A_vr/2.285)
+# # E_BV4 = 0.86*(A_vi/1.698)
+# # E_BV5 = 0.86*(A_vz/1.263)
+# # mean_E_BV = np.average([E_BV1, E_BV2, E_BV3, E_BV4, E_BV5]) #Note, each of E_BVx are almost identical - calculating the mean reducing the effect of any rounding errors
 
-# print(E_BV1)
-# print(E_BV2)
-# print(E_BV3)
-# print(E_BV4)
-# print(E_BV5)
+# # print(E_BV1)
+# # print(E_BV2)
+# # print(E_BV3)
+# # print(E_BV4)
+# # print(E_BV5)
 
-ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
-# uncorrected_SDSS = sdss_flux
-inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
-inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
-sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=mean_E_BV) #divide to remove the effect of dust
-desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=mean_E_BV)
+# ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
+# # uncorrected_SDSS = sdss_flux
+# inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
+# inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
+# sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=mean_E_BV) #divide to remove the effect of dust
+# desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=mean_E_BV)
 
-# Correcting for redshift.
-sdss_lamb = (sdss_lamb/(1+SDSS_z))
-desi_lamb = (desi_lamb/(1+DESI_z))
+# # Correcting for redshift.
+# sdss_lamb = (sdss_lamb/(1+SDSS_z))
+# desi_lamb = (desi_lamb/(1+DESI_z))
 
 # #Calculate rolling average manually
 # def rolling_average(arr, window_size):
@@ -136,31 +137,31 @@ desi_lamb = (desi_lamb/(1+DESI_z))
 # # sdss_flux = sdss_flux[9:]
 # # desi_flux = desi_flux[9:]
 
-# Gaussian smoothing
-# adjust stddev to control the degree of smoothing. Higher stddev means smoother
-# https://en.wikipedia.org/wiki/Gaussian_blur
-gaussian_kernel = Gaussian1DKernel(stddev=3)
+# # Gaussian smoothing
+# # adjust stddev to control the degree of smoothing. Higher stddev means smoother
+# # https://en.wikipedia.org/wiki/Gaussian_blur
+# gaussian_kernel = Gaussian1DKernel(stddev=3)
 
-# Smooth the flux data using the Gaussian kernel
-Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
-Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
-# Gaus_smoothed_SDSS_uncorrected = convolve(uncorrected_SDSS, gaussian_kernel)
+# # Smooth the flux data using the Gaussian kernel
+# Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
+# Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+# # Gaus_smoothed_SDSS_uncorrected = convolve(uncorrected_SDSS, gaussian_kernel)
 
-#BELs
-H_alpha = 6562.819
-H_beta = 4861.333
-Mg2 = 2795.528
-C3_ = 1908.734
-C4 = 1548.187
-Ly_alpha = 1215.670
-Ly_beta = 1025.722
-#NEL
-_O3_ = 5006.843 #underscores indicate square brackets
-#Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
-SDSS_min = min(sdss_lamb)
-SDSS_max = max(sdss_lamb)
-DESI_min = min(desi_lamb)
-DESI_max = max(desi_lamb)
+# #BELs
+# H_alpha = 6562.819
+# H_beta = 4861.333
+# Mg2 = 2795.528
+# C3_ = 1908.734
+# C4 = 1548.187
+# Ly_alpha = 1215.670
+# Ly_beta = 1025.722
+# #NEL
+# _O3_ = 5006.843 #underscores indicate square brackets
+# #Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
+# SDSS_min = min(sdss_lamb)
+# SDSS_max = max(sdss_lamb)
+# DESI_min = min(desi_lamb)
+# DESI_max = max(desi_lamb)
 
 # #Plot of SDSS Spectrum - Extinction Corrected vs Uncorrected
 # plt.figure(figsize=(12,7))
@@ -257,6 +258,7 @@ W1_mag = filtered_WISE_rows.iloc[:, 11].tolist() + filtered_NEO_rows_W1.iloc[:, 
 W1_unc = filtered_WISE_rows.iloc[:, 12].tolist() + filtered_NEO_rows_W1.iloc[:, 19].tolist()
 # W1_unc = filtered_WISE_rows.iloc[:, 24].tolist() + filtered_NEO_rows_W1.iloc[:, 54].tolist() #raw flux unc
 W1_mag = list(zip(W1_mag, mjd_date_W1, W1_unc))
+W1_mag = [tup for tup in W1_mag if not np.isnan(tup[0])] #removing instances where the mag value is NaN
 
 mjd_date_W2 = filtered_WISE_rows.iloc[:, 10].tolist() + filtered_NEO_rows_W2.iloc[:, 42].tolist()
 W2_mag = filtered_WISE_rows.iloc[:, 14].tolist() + filtered_NEO_rows_W2.iloc[:, 22].tolist()
@@ -264,6 +266,7 @@ W2_mag = filtered_WISE_rows.iloc[:, 14].tolist() + filtered_NEO_rows_W2.iloc[:, 
 W2_unc = filtered_WISE_rows.iloc[:, 15].tolist() + filtered_NEO_rows_W2.iloc[:, 23].tolist()
 # W2_unc = filtered_WISE_rows.iloc[:, 26].tolist() + filtered_NEO_rows_W1.iloc[:, 56].tolist()
 W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
+W2_mag = [tup for tup in W1_mag if not np.isnan(tup[0])]
 
 # filtered_PTF_rows_g = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 1] #using filter identifier column to select g_band observations
 # filtered_PTF_rows_r = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 2]
@@ -536,87 +539,61 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
 # r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
 
-#Calculating the difference of each data point's mjd to the SDSS mjd
-differences_SDSS_W1 = [abs(x - SDSS_mjd) for x in W1_av_mjd_date]
-differences_SDSS_W2 = [abs(x - SDSS_mjd) for x in W2_av_mjd_date]
-differences_DESI_W1 = [abs(x - DESI_mjd) for x in W1_av_mjd_date]
-differences_DESI_W2 = [abs(x - DESI_mjd) for x in W2_av_mjd_date]
+def find_closest_indices(x_vals, value):
+    t = 0  
+    if value <= x_vals[0]: #mjd is before first observation
+        t += 1
+        return 0, 0, t
+    elif value >= x_vals[-1]: #mjd is after last observation
+        t += 1
+        return 0, 0, t
+    for i in range(len(x_vals) - 1):
+        if x_vals[i] <= value <= x_vals[i + 1]:
+            before_index = i
+            after_index = i + 1
+            return before_index, after_index, t
 
-# Find indices of the 3 smallest differences
-closest_indices_SDSS_W1 = sorted(range(len(differences_SDSS_W1)), key=lambda i: differences_SDSS_W1[i])[:3]
-closest_indices_SDSS_W2 = sorted(range(len(differences_SDSS_W2)), key=lambda i: differences_SDSS_W2[i])[:3]
-closest_indices_DESI_W1 = sorted(range(len(differences_DESI_W1)), key=lambda i: differences_DESI_W1[i])[:3]
-closest_indices_DESI_W2 = sorted(range(len(differences_DESI_W2)), key=lambda i: differences_DESI_W2[i])[:3]
-closest_indices_SDSS_W1 = sorted(closest_indices_SDSS_W1) #sorting in ascending order
-closest_indices_SDSS_W2 = sorted(closest_indices_SDSS_W2)
-closest_indices_DESI_W1 = sorted(closest_indices_DESI_W1)
-closest_indices_DESI_W2 = sorted(closest_indices_DESI_W2)
+before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
+if q == 0 & w == 0 & e == 0 & r == 0:
 
-closest_dps_SDSS_W1 = [(W1_averages_flux[i], W1_av_mjd_date[i], W1_av_uncs_flux[i]) for i in closest_indices_SDSS_W1]
-closest_dps_SDSS_W2 = [(W2_averages_flux[i], W2_av_mjd_date[i], W2_av_uncs_flux[i]) for i in closest_indices_SDSS_W2]
-closest_dps_DESI_W1 = [(W1_averages_flux[i], W1_av_mjd_date[i], W1_av_uncs_flux[i]) for i in closest_indices_DESI_W1]
-closest_dps_DESI_W2 = [(W2_averages_flux[i], W2_av_mjd_date[i], W2_av_uncs_flux[i]) for i in closest_indices_DESI_W2]
+    #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
+    W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
+    W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+    W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
+    W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
-# fitting a linear model with the 3 data points so I can get the interpolated flux uncertainty. have already checked 3 valid data points.
-# Assume the uncertainties are Gaussian distributed & independent.
-#SDSS W1
-for i in range(len(closest_dps_SDSS_W1)):
-    xval = closest_dps_SDSS_W1[i][1] #mjds are x values, but in the middle due to convention
-    yval = closest_dps_SDSS_W1[i][0]
-    yerr = closest_dps_SDSS_W1[i][2]
+    W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
+    W2_SDSS_unc_interp = np.sqrt(((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + ((((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2]))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+    W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
+    W2_DESI_unc_interp = np.sqrt(((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + ((((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2]))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
 
-def model_funct(x, vals): #vals is a list containing [gradient, intercept]
-    return vals[0]*x + vals[1] #mx + c
+    # print(W1_SDSS_unc_interp)
+    # print(W2_SDSS_unc_interp)
+    # print(W1_DESI_unc_interp)
+    # print(W2_DESI_unc_interp)
 
-initial_guess = np.array([1, 0]) # Initial guess for fit parameters
+    # W1_SDSS_unc_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_av_uncs_flux)
+    # W2_SDSS_unc_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_av_uncs_flux)
+    # W1_DESI_unc_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_av_uncs_flux)
+    # W2_DESI_unc_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_av_uncs_flux)
 
-def chisq(modelparams, x_data, y_data, y_err):
-    chisqval=0
-    for i in range(len(xval)):
-        chisqval += ((y_data[i] - model_funct(x_data[i], modelparams))/y_err[i])**2
-    return chisqval
+    # print(W1_SDSS_unc_interp)
+    # print(W2_SDSS_unc_interp)
+    # print(W1_DESI_unc_interp)
+    # print(W2_DESI_unc_interp)
 
-fit = scipy.optimize.minimize(chisq, initial_guess, args=(xval, yval, yerr))
-
-#best fit parameter array is output as fit.x
-gradient = fit.x[0]
-intercept = fit.x[1]
-
-#minimised chi squared value
-chisq_min = chisq([gradient, intercept], xval, yval, yerr)
-
-deg_freedom = xval.size - initial_guess.size # will always be 3-2 = 1
-# "Degrees of freedom are the maximum number of logically independent values, which may vary in a data sample."
-# Here, there will always be 1 DOF because there are 3 data points constrained by a model with 2 parameters m & c.
-
-chisq_reduced = chisq_min/deg_freedom #for an accurate model, the reduced chi-squared value is approximately 1
-
-# It is possible to solve the relevant coupled equations with matrix methods to yield the best-fit coefficients, and their uncertainties (Bevington and Robinson 2003, Section 7.2, Press et al. 1992, Section 15.4)
-hess_inv = fit.hess_inv  # Approximation of covariance matrix
-sigma_m = np.sqrt(hess_inv[0, 0])  # Uncertainty in gradient
-sigma_c = np.sqrt(hess_inv[1, 1])  # Uncertainty in intercept
-
-
-#Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
-W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
-W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
-
-W1_SDSS_unc_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_av_uncs_flux)
-W2_SDSS_unc_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_av_uncs_flux)
-W1_DESI_unc_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_av_uncs_flux)
-W2_DESI_unc_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_av_uncs_flux)
-
-#If uncertainty = nan; then z score = nan
-#If uncertainty = 0; then z score = inf
-print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
-print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
-print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
-print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
-print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
-print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
+    #If uncertainty = nan; then z score = nan
+    #If uncertainty = 0; then z score = inf
+    print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
+    print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
+    print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
+    print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
+    print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
+    print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(12,7))

@@ -29,26 +29,18 @@ W2_wl = 4.6e4
 g_wl = 0.467e4
 r_wl = 0.616e4
 
-object_names_list = [] #Keeps track of objects that had the right data to actual take z_scores
+object_names_list = [] #Keeps track of objects that met MIR data requirements to take z score & absolute change
 
-# z_score_lists
-W1_b_SDSS_b_DESI = []
-W1_a_SDSS_b_DESI = []
-W1_b_SDSS_a_DESI = []
-W1_a_SDSS_a_DESI = []
-W1_b_DESI_b_SDSS = []
-W1_a_DESI_b_SDSS = []
-W1_b_DESI_a_SDSS = []
-W1_a_DESI_a_SDSS = []
+# z_score & absolute change lists
+W1_SDSS_DESI = []
+W1_DESI_SDSS = []
+W1_abs_change = []
+W1_abs_change_norm = []
 
-W2_b_SDSS_b_DESI = []
-W2_a_SDSS_b_DESI = []
-W2_b_SDSS_a_DESI = []
-W2_a_SDSS_a_DESI = []
-W2_b_DESI_b_SDSS = []
-W2_a_DESI_b_SDSS = []
-W2_b_DESI_a_SDSS = []
-W2_a_DESI_a_SDSS = []
+W2_SDSS_DESI = []
+W2_DESI_SDSS = []
+W2_abs_change = []
+W2_abs_change_norm = []
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -59,6 +51,20 @@ elif Min_SNR == 2:
     MIR_SNR = 'C'
 else:
     print('select a valid min SNR - 10, 3 or 2.')
+
+def find_closest_indices(x_vals, value):
+    t = 0  
+    if value <= x_vals[0]: #mjd is before first observation
+        t += 1
+        return 0, 0, t
+    elif value >= x_vals[-1]: #mjd is after last observation
+        t += 1
+        return 0, 0, t
+    for i in range(len(x_vals) - 1):
+        if x_vals[i] <= value <= x_vals[i + 1]:
+            before_index = i
+            after_index = i + 1
+            return before_index, after_index, t
 
 g = 0
 for object_name in object_names:
@@ -104,11 +110,13 @@ for object_name in object_names:
     W1_mag = filtered_WISE_rows.iloc[:, 11].tolist() + filtered_NEO_rows_W1.iloc[:, 18].tolist()
     W1_unc = filtered_WISE_rows.iloc[:, 12].tolist() + filtered_NEO_rows_W1.iloc[:, 19].tolist()
     W1_mag = list(zip(W1_mag, mjd_date_W1, W1_unc))
+    W1_mag = [tup for tup in W1_mag if not np.isnan(tup[0])] #removing instances where the mag value is NaN
 
     mjd_date_W2 = filtered_WISE_rows.iloc[:, 10].tolist() + filtered_NEO_rows_W2.iloc[:, 42].tolist()
     W2_mag = filtered_WISE_rows.iloc[:, 14].tolist() + filtered_NEO_rows_W2.iloc[:, 22].tolist()
     W2_unc = filtered_WISE_rows.iloc[:, 15].tolist() + filtered_NEO_rows_W2.iloc[:, 23].tolist()
     W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
+    W2_mag = [tup for tup in W1_mag if not np.isnan(tup[0])]
 
     if len(W1_mag) < 50: #want 50 data points as a minimum
         continue
@@ -116,9 +124,8 @@ for object_name in object_names:
         continue
 
     #Below code sorts MIR data.
-    #Two assumptions required for code to work:
-    #1. There is never a situation where the data has only one data point for an epoch.
-    #2. The data is in order of oldest mjd to most recent.
+    #One assumptions required for code to work:
+    #1. The data is in order of oldest mjd to most recent.
 
     # W1 data first
     W1_list = []
@@ -203,90 +210,64 @@ for object_name in object_names:
     W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
     W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
-    # Selecting the 2 points either side of SDSS & DESI
-    if SDSS_mjd <= W1_av_mjd_date[0]:
-        # print("SDSS observation was before WISE observation.")
-        continue
-    elif SDSS_mjd >= W1_av_mjd_date[-1]:
-        # print("SDSS observation was after WISE observation.") #Not possible
-        continue
-    elif SDSS_mjd <= W2_av_mjd_date[0]:
-        continue
-    elif SDSS_mjd >= W2_av_mjd_date[-1]:
-        continue
-    else:
-        before_SDSS_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= SDSS_mjd) #different for W1 & W2 in case there are a different number of W1 & W2 epochs
-        after_SDSS_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > SDSS_mjd)
-        before_SDSS_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= SDSS_mjd)
-        after_SDSS_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > SDSS_mjd)
-
-    if DESI_mjd <= W1_av_mjd_date[0]:
-        # print("DESI observation was before WISE observation.") #Not possible
-        continue
-    elif DESI_mjd >= W1_av_mjd_date[-1]:
-        # print("DESI observation was after WISE observation.")
-        continue
-    elif DESI_mjd <= W2_av_mjd_date[0]:
-        continue
-    elif DESI_mjd >= W2_av_mjd_date[-1]:
-        continue
-    else:
-        before_DESI_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= DESI_mjd)
-        after_DESI_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > DESI_mjd)
-        before_DESI_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= DESI_mjd)
-        after_DESI_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > DESI_mjd)
-
     W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
     W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
     W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
     W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
-    object_names_list.append(object_name)
+    before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+    before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+    before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+    before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
-    #If uncertainty = nan; then z score = nan
-    #If uncertainty = 0; then z score = inf
-    W1_b_SDSS_b_DESI.append((W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1]))
-    W1_a_SDSS_b_DESI.append((W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[before_DESI_index_W1])/(W1_av_uncs_flux[before_DESI_index_W1]))
-    W1_b_SDSS_a_DESI.append((W1_averages_flux[before_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1]))
-    W1_a_SDSS_a_DESI.append((W1_averages_flux[after_SDSS_index_W1]-W1_averages_flux[after_DESI_index_W1])/(W1_av_uncs_flux[after_DESI_index_W1]))
-    W1_b_DESI_b_SDSS.append((W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1]))
-    W1_a_DESI_b_SDSS.append((W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[before_SDSS_index_W1])/(W1_av_uncs_flux[before_SDSS_index_W1]))
-    W1_b_DESI_a_SDSS.append((W1_averages_flux[before_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1]))
-    W1_a_DESI_a_SDSS.append((W1_averages_flux[after_DESI_index_W1]-W1_averages_flux[after_SDSS_index_W1])/(W1_av_uncs_flux[after_SDSS_index_W1]))
 
-    W2_b_SDSS_b_DESI.append((W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2]))
-    W2_a_SDSS_b_DESI.append((W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[before_DESI_index_W2])/(W2_av_uncs_flux[before_DESI_index_W2]))
-    W2_b_SDSS_a_DESI.append((W2_averages_flux[before_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2]))
-    W2_a_SDSS_a_DESI.append((W2_averages_flux[after_SDSS_index_W2]-W2_averages_flux[after_DESI_index_W2])/(W2_av_uncs_flux[after_DESI_index_W2]))
-    W2_b_DESI_b_SDSS.append((W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2]))
-    W2_a_DESI_b_SDSS.append((W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[before_SDSS_index_W2])/(W2_av_uncs_flux[before_SDSS_index_W2]))
-    W2_b_DESI_a_SDSS.append((W2_averages_flux[before_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2]))
-    W2_a_DESI_a_SDSS.append((W2_averages_flux[after_DESI_index_W2]-W2_averages_flux[after_SDSS_index_W2])/(W2_av_uncs_flux[after_SDSS_index_W2]))
+    if q == 0 & w == 0 & e == 0 & r == 0:
+
+        #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
+        W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
+        W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+        W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
+        W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+
+        W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
+        W2_SDSS_unc_interp = np.sqrt(((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + ((((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2]))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+        W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
+        W2_DESI_unc_interp = np.sqrt(((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + ((((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2]))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+        
+        object_names_list.append(object_name)
+
+        #If uncertainty = nan; then z score = nan
+        #If uncertainty = 0; then z score = inf
+        W1_SDSS_DESI.append((W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp))
+        W1_DESI_SDSS.append((W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp))
+        W1_abs_change.append(abs(W1_SDSS_interp-W1_DESI_interp)) #normalise this with the mean/median flux value?
+        W1_abs_change_norm.append(abs((W1_SDSS_interp-W1_DESI_interp))/(np.average(W1_averages_flux)))
+
+        W2_SDSS_DESI.append((W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp))
+        W2_DESI_SDSS.append((W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp))
+        W2_abs_change.append(abs(W2_SDSS_interp-W2_DESI_interp))
+        W2_abs_change_norm.append(abs((W2_SDSS_interp-W2_DESI_interp)/(np.average(W2_averages_flux))))
+
+    else:
+        continue
 
 #for loop now ended
 z_score_data = {
     "Object": object_names_list,
-    "W1 Before SDSS vs Before DESI": W1_b_SDSS_b_DESI,
-    "W1 After SDSS vs Before DESI": W1_a_SDSS_b_DESI,
-    "W1 Before SDSS vs After DESI": W1_b_SDSS_a_DESI,
-    "W1 After SDSS vs After DESI": W1_a_SDSS_a_DESI,
-    "W1 Before DESI vs Before SDSS": W1_b_DESI_b_SDSS,
-    "W1 After DESI vs Before SDSS": W1_a_DESI_b_SDSS,
-    "W1 Before DESI vs After SDSS": W1_b_DESI_a_SDSS,
-    "W1 After DESI vs After SDSS": W1_a_DESI_a_SDSS,
 
-    "W2 Before SDSS vs Before DESI": W2_b_SDSS_b_DESI,
-    "W2 After SDSS vs Before DESI": W2_a_SDSS_b_DESI,
-    "W2 Before SDSS vs After DESI": W2_b_SDSS_a_DESI,
-    "W2 After SDSS vs After DESI": W2_a_SDSS_a_DESI,
-    "W2 Before DESI vs Before SDSS": W2_b_DESI_b_SDSS,
-    "W2 After DESI vs Before SDSS": W2_a_DESI_b_SDSS,
-    "W2 Before DESI vs After SDSS": W2_b_DESI_a_SDSS,
-    "W2 After DESI vs After SDSS": W2_a_DESI_a_SDSS,
+    "W1 SDSS vs DESI": W1_SDSS_DESI,
+    "W1 DESI vs SDSS": W1_DESI_SDSS,
+    "W1 Flux Change": W1_abs_change,
+    "W1 Normalised Flux Change": W1_abs_change_norm,
+
+    "W2 SDSS vs DESI": W2_SDSS_DESI,
+    "W2 DESI vs SDSS": W2_DESI_SDSS,
+    "W2 Flux Change": W2_abs_change,
+    "W2 Normalised Flux Change": W2_abs_change_norm,
 }
 
 # Convert the data into a DataFrame
 df = pd.DataFrame(z_score_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_z_scores.csv", index=False)
+df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
