@@ -575,6 +575,91 @@ else:
     before_DESI_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= DESI_mjd)
     after_DESI_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > DESI_mjd)
 
+#Need to work out which 3rd data point is closer to SDSS & DESI to make a linear fit:
+if w == 0:
+    twobefore_SDSS_gap_W1 = SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1-1]
+    twoafter_SDSS_gap_W1 = W1_av_mjd_date[after_SDSS_index_W1+1] - SDSS_mjd
+    if twobefore_SDSS_gap_W1 <= twoafter_SDSS_gap_W1: #SDSS closer to 2dps before than after
+        xval = [W1_av_mjd_date[before_SDSS_index_W1-1], W1_av_mjd_date[before_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1]]
+        yval = [W1_averages_flux[before_SDSS_index_W1-1], W1_averages_flux[before_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1]]
+        yerr = [W1_av_uncs_flux[before_SDSS_index_W1-1], W1_av_uncs_flux[before_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1]]
+    elif twobefore_SDSS_gap_W1 > twoafter_SDSS_gap_W1:
+        xval = [W1_av_mjd_date[before_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1+1]]
+        yval = [W1_averages_flux[before_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1+1]]
+        yerr = [W1_av_uncs_flux[before_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1+1]]
+
+    twobefore_DESI_gap_W1 = DESI_mjd - W1_av_mjd_date[before_DESI_index_W1-1]
+    twoafter_DESI_gap_W1 = W1_av_mjd_date[after_DESI_index_W1+1] - DESI_mjd
+    if twobefore_DESI_gap_W1 <= twoafter_DESI_gap_W1: #DESI closer to 2dps before than after
+        xval = [W1_av_mjd_date[before_DESI_index_W1-1], W1_av_mjd_date[before_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1]]
+        yval = [W1_averages_flux[before_DESI_index_W1-1], W1_averages_flux[before_DESI_index_W1], W1_averages_flux[after_DESI_index_W1]]
+        yerr = [W1_av_uncs_flux[before_DESI_index_W1-1], W1_av_uncs_flux[before_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1]]
+    elif twobefore_DESI_gap_W1 > twoafter_DESI_gap_W1:
+        xval = [W1_av_mjd_date[before_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1+1]]
+        yval = [W1_averages_flux[before_DESI_index_W1], W1_averages_flux[after_DESI_index_W1], W1_averages_flux[after_DESI_index_W1+1]]
+        yerr = [W1_av_uncs_flux[before_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1+1]]
+
+    twobefore_SDSS_gap_W2 = SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2-1]
+    twoafter_SDSS_gap_W2 = W2_av_mjd_date[after_SDSS_index_W2+1] - SDSS_mjd
+    if twobefore_SDSS_gap_W2 <= twoafter_SDSS_gap_W2: #SDSS closer to 2dps before than after
+        xval = [W2_av_mjd_date[before_SDSS_index_W2-1], W2_av_mjd_date[before_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2]]
+        yval = [W2_averages_flux[before_SDSS_index_W2-1], W2_averages_flux[before_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2]]
+        yerr = [W2_av_uncs_flux[before_SDSS_index_W2-1], W2_av_uncs_flux[before_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2]]
+    elif twobefore_SDSS_gap_W2 > twoafter_SDSS_gap_W2:
+        xval = [W2_av_mjd_date[before_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2+1]]
+        yval = [W2_averages_flux[before_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2+1]]
+        yerr = [W2_av_uncs_flux[before_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2+1]]
+
+    twobefore_DESI_gap_W2 = DESI_mjd - W2_av_mjd_date[before_DESI_index_W2-1]
+    twoafter_DESI_gap_W2 = W2_av_mjd_date[after_DESI_index_W2+1] - DESI_mjd
+    if twobefore_DESI_gap_W2 <= twoafter_DESI_gap_W2: #DESI closer to 2dps before than after
+        xval = [W2_av_mjd_date[before_DESI_index_W2-1], W2_av_mjd_date[before_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2]]
+        yval = [W2_averages_flux[before_DESI_index_W2-1], W2_averages_flux[before_DESI_index_W2], W2_averages_flux[after_DESI_index_W2]]
+        yerr = [W2_av_uncs_flux[before_DESI_index_W2-1], W2_av_uncs_flux[before_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2]]
+    elif twobefore_DESI_gap_W2 > twoafter_DESI_gap_W2:
+        xval = [W2_av_mjd_date[before_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2+1]]
+        yval = [W2_averages_flux[before_DESI_index_W2], W2_averages_flux[after_DESI_index_W2], W2_averages_flux[after_DESI_index_W2+1]]
+        yerr = [W2_av_uncs_flux[before_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2+1]]
+
+
+def model_funct(x, vals): #vals is a list containing [gradient, intercept]
+    return vals[0]*x + vals[1] #mx + c
+
+initial_guess = np.array([1, 0]) # Initial guess for fit parameters
+
+def chisq(modelparams, x_data, y_data, y_err):
+    chisqval=0
+    for i in range(len(xval)):
+        chisqval += ((y_data[i] - model_funct(x_data[i], modelparams))/y_err[i])**2
+    return chisqval
+
+fit = scipy.optimize.minimize(chisq, initial_guess, args=(xval, yval, yerr))
+
+#best fit parameter array is output as fit.x
+gradient = fit.x[0]
+intercept = fit.x[1]
+print(intercept)
+print(gradient)
+
+#minimised chi squared value
+chisq_min = chisq([gradient, intercept], xval, yval, yerr)
+print('chi^2_min = {}'.format(chisq_min))
+
+#Degrees of freedom are the maximum number of logically independent values, which may vary in a data sample.
+deg_freedom = xval.size - initial_guess.size # will always be 3-2 = 1
+print('DoF = {}'.format(deg_freedom))
+
+chisq_reduced = chisq_min/deg_freedom
+print('reduced chi^2 = {}'.format(chisq_reduced)) #for an accurate model, the reduced chi-squared value is approximately 1
+
+hess_inv = fit.hess_inv  # Approximation of covariance matrix
+sigma_m = np.sqrt(hess_inv[0, 0])  # Uncertainty in gradient
+sigma_c = np.sqrt(hess_inv[1, 1])  # Uncertainty in intercept
+
+x_interp = 0.11  # Example x value for interpolation
+sigma_y = np.sqrt((x_interp**2)*(sigma_m**2) + sigma_c**2)
+
+
 #Linearly interpolating to get interpolated flux on a value in between the data points.
 if w == 0:
     W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
