@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import pandas as pd
+import scipy.optimize
 from astropy.io import fits
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
 from astropy.convolution import convolve, Gaussian1DKernel
@@ -535,92 +536,35 @@ W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs
 # g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
 # r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
 
+#Calculating the difference of each data point's mjd to the SDSS mjd
+differences_SDSS_W1 = [abs(x - SDSS_mjd) for x in W1_av_mjd_date]
+differences_SDSS_W2 = [abs(x - SDSS_mjd) for x in W2_av_mjd_date]
+differences_DESI_W1 = [abs(x - DESI_mjd) for x in W1_av_mjd_date]
+differences_DESI_W2 = [abs(x - DESI_mjd) for x in W2_av_mjd_date]
 
-# Selecting the 2 points either side of SDSS & DESI
-w = 0
-if SDSS_mjd <= W1_av_mjd_date[0]:
-    w += 1
-    print("SDSS observation was before WISE observation.")
-elif SDSS_mjd >= W1_av_mjd_date[-1]:
-    w += 1
-    print("SDSS observation was after WISE observation.") #Not possible
-elif SDSS_mjd <= W2_av_mjd_date[0]:
-    w += 1
-    print("SDSS observation was before WISE observation.")
-elif SDSS_mjd >= W2_av_mjd_date[-1]:
-    w += 1
-    print("SDSS observation was after WISE observation.") #Not possible
-else:
-    before_SDSS_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= SDSS_mjd) #different for W1 & W2 in case there are a different number of W1 & W2 epochs
-    after_SDSS_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > SDSS_mjd)
-    before_SDSS_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= SDSS_mjd)
-    after_SDSS_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > SDSS_mjd)
+# Find indices of the 3 smallest differences
+closest_indices_SDSS_W1 = sorted(range(len(differences_SDSS_W1)), key=lambda i: differences_SDSS_W1[i])[:3]
+closest_indices_SDSS_W2 = sorted(range(len(differences_SDSS_W2)), key=lambda i: differences_SDSS_W2[i])[:3]
+closest_indices_DESI_W1 = sorted(range(len(differences_DESI_W1)), key=lambda i: differences_DESI_W1[i])[:3]
+closest_indices_DESI_W2 = sorted(range(len(differences_DESI_W2)), key=lambda i: differences_DESI_W2[i])[:3]
+closest_indices_SDSS_W1 = sorted(closest_indices_SDSS_W1) #sorting in ascending order
+closest_indices_SDSS_W2 = sorted(closest_indices_SDSS_W2)
+closest_indices_DESI_W1 = sorted(closest_indices_DESI_W1)
+closest_indices_DESI_W2 = sorted(closest_indices_DESI_W2)
 
-w = 0
-if DESI_mjd <= W1_av_mjd_date[0]:
-    w += 1
-    print("DESI observation was before WISE observation.") #Not possible
-elif DESI_mjd >= W1_av_mjd_date[-1]:
-    w += 1
-    print("DESI observation was after WISE observation.")
-elif DESI_mjd <= W2_av_mjd_date[0]:
-    w += 1
-    print("DESI observation was before WISE observation.") #Not possible
-elif DESI_mjd >= W2_av_mjd_date[-1]:
-    w += 1
-    print("DESI observation was after WISE observation.")
-else:
-    before_DESI_index_W1 = max(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] <= DESI_mjd)
-    after_DESI_index_W1 = min(i for i in range(len(W1_av_mjd_date)) if W1_av_mjd_date[i] > DESI_mjd)
-    before_DESI_index_W2 = max(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] <= DESI_mjd)
-    after_DESI_index_W2 = min(i for i in range(len(W2_av_mjd_date)) if W2_av_mjd_date[i] > DESI_mjd)
 
-#Need to work out which 3rd data point is closer to SDSS & DESI to make a linear fit:
-if w == 0:
-    twobefore_SDSS_gap_W1 = SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1-1]
-    twoafter_SDSS_gap_W1 = W1_av_mjd_date[after_SDSS_index_W1+1] - SDSS_mjd
-    if twobefore_SDSS_gap_W1 <= twoafter_SDSS_gap_W1: #SDSS closer to 2dps before than after
-        xval = [W1_av_mjd_date[before_SDSS_index_W1-1], W1_av_mjd_date[before_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1]]
-        yval = [W1_averages_flux[before_SDSS_index_W1-1], W1_averages_flux[before_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1]]
-        yerr = [W1_av_uncs_flux[before_SDSS_index_W1-1], W1_av_uncs_flux[before_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1]]
-    elif twobefore_SDSS_gap_W1 > twoafter_SDSS_gap_W1:
-        xval = [W1_av_mjd_date[before_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1], W1_av_mjd_date[after_SDSS_index_W1+1]]
-        yval = [W1_averages_flux[before_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1], W1_averages_flux[after_SDSS_index_W1+1]]
-        yerr = [W1_av_uncs_flux[before_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1], W1_av_uncs_flux[after_SDSS_index_W1+1]]
+closest_dps_SDSS_W1 = [(W1_averages_flux[i], W1_av_mjd_date[i], W1_av_uncs_flux[i]) for i in closest_indices_SDSS_W1]
+closest_dps_SDSS_W2 = [(W2_averages_flux[i], W2_av_mjd_date[i], W2_av_uncs_flux[i]) for i in closest_indices_SDSS_W2]
+closest_dps_DESI_W1 = [(W1_averages_flux[i], W1_av_mjd_date[i], W1_av_uncs_flux[i]) for i in closest_indices_DESI_W1]
+closest_dps_DESI_W2 = [(W2_averages_flux[i], W2_av_mjd_date[i], W2_av_uncs_flux[i]) for i in closest_indices_DESI_W2]
 
-    twobefore_DESI_gap_W1 = DESI_mjd - W1_av_mjd_date[before_DESI_index_W1-1]
-    twoafter_DESI_gap_W1 = W1_av_mjd_date[after_DESI_index_W1+1] - DESI_mjd
-    if twobefore_DESI_gap_W1 <= twoafter_DESI_gap_W1: #DESI closer to 2dps before than after
-        xval = [W1_av_mjd_date[before_DESI_index_W1-1], W1_av_mjd_date[before_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1]]
-        yval = [W1_averages_flux[before_DESI_index_W1-1], W1_averages_flux[before_DESI_index_W1], W1_averages_flux[after_DESI_index_W1]]
-        yerr = [W1_av_uncs_flux[before_DESI_index_W1-1], W1_av_uncs_flux[before_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1]]
-    elif twobefore_DESI_gap_W1 > twoafter_DESI_gap_W1:
-        xval = [W1_av_mjd_date[before_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1], W1_av_mjd_date[after_DESI_index_W1+1]]
-        yval = [W1_averages_flux[before_DESI_index_W1], W1_averages_flux[after_DESI_index_W1], W1_averages_flux[after_DESI_index_W1+1]]
-        yerr = [W1_av_uncs_flux[before_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1], W1_av_uncs_flux[after_DESI_index_W1+1]]
-
-    twobefore_SDSS_gap_W2 = SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2-1]
-    twoafter_SDSS_gap_W2 = W2_av_mjd_date[after_SDSS_index_W2+1] - SDSS_mjd
-    if twobefore_SDSS_gap_W2 <= twoafter_SDSS_gap_W2: #SDSS closer to 2dps before than after
-        xval = [W2_av_mjd_date[before_SDSS_index_W2-1], W2_av_mjd_date[before_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2]]
-        yval = [W2_averages_flux[before_SDSS_index_W2-1], W2_averages_flux[before_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2]]
-        yerr = [W2_av_uncs_flux[before_SDSS_index_W2-1], W2_av_uncs_flux[before_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2]]
-    elif twobefore_SDSS_gap_W2 > twoafter_SDSS_gap_W2:
-        xval = [W2_av_mjd_date[before_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2], W2_av_mjd_date[after_SDSS_index_W2+1]]
-        yval = [W2_averages_flux[before_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2], W2_averages_flux[after_SDSS_index_W2+1]]
-        yerr = [W2_av_uncs_flux[before_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2], W2_av_uncs_flux[after_SDSS_index_W2+1]]
-
-    twobefore_DESI_gap_W2 = DESI_mjd - W2_av_mjd_date[before_DESI_index_W2-1]
-    twoafter_DESI_gap_W2 = W2_av_mjd_date[after_DESI_index_W2+1] - DESI_mjd
-    if twobefore_DESI_gap_W2 <= twoafter_DESI_gap_W2: #DESI closer to 2dps before than after
-        xval = [W2_av_mjd_date[before_DESI_index_W2-1], W2_av_mjd_date[before_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2]]
-        yval = [W2_averages_flux[before_DESI_index_W2-1], W2_averages_flux[before_DESI_index_W2], W2_averages_flux[after_DESI_index_W2]]
-        yerr = [W2_av_uncs_flux[before_DESI_index_W2-1], W2_av_uncs_flux[before_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2]]
-    elif twobefore_DESI_gap_W2 > twoafter_DESI_gap_W2:
-        xval = [W2_av_mjd_date[before_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2], W2_av_mjd_date[after_DESI_index_W2+1]]
-        yval = [W2_averages_flux[before_DESI_index_W2], W2_averages_flux[after_DESI_index_W2], W2_averages_flux[after_DESI_index_W2+1]]
-        yerr = [W2_av_uncs_flux[before_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2], W2_av_uncs_flux[after_DESI_index_W2+1]]
-
+# fitting a linear model with the 3 data points so I can get the interpolated flux uncertainty. have already checked 3 valid data points.
+# Assume the uncertainties are Gaussian distributed & independent.
+#SDSS W1
+for i in range(len(closest_dps_SDSS_W1)):
+    xval = closest_dps_SDSS_W1[i][1] #mjds are x values, but in the middle due to convention
+    yval = closest_dps_SDSS_W1[i][0]
+    yerr = closest_dps_SDSS_W1[i][2]
 
 def model_funct(x, vals): #vals is a list containing [gradient, intercept]
     return vals[0]*x + vals[1] #mx + c
@@ -638,49 +582,41 @@ fit = scipy.optimize.minimize(chisq, initial_guess, args=(xval, yval, yerr))
 #best fit parameter array is output as fit.x
 gradient = fit.x[0]
 intercept = fit.x[1]
-print(intercept)
-print(gradient)
 
 #minimised chi squared value
 chisq_min = chisq([gradient, intercept], xval, yval, yerr)
-print('chi^2_min = {}'.format(chisq_min))
 
-#Degrees of freedom are the maximum number of logically independent values, which may vary in a data sample.
 deg_freedom = xval.size - initial_guess.size # will always be 3-2 = 1
-print('DoF = {}'.format(deg_freedom))
+# "Degrees of freedom are the maximum number of logically independent values, which may vary in a data sample."
+# Here, there will always be 1 DOF because there are 3 data points constrained by a model with 2 parameters m & c.
 
-chisq_reduced = chisq_min/deg_freedom
-print('reduced chi^2 = {}'.format(chisq_reduced)) #for an accurate model, the reduced chi-squared value is approximately 1
+chisq_reduced = chisq_min/deg_freedom #for an accurate model, the reduced chi-squared value is approximately 1
 
+# It is possible to solve the relevant coupled equations with matrix methods to yield the best-fit coefficients, and their uncertainties (Bevington and Robinson 2003, Section 7.2, Press et al. 1992, Section 15.4)
 hess_inv = fit.hess_inv  # Approximation of covariance matrix
 sigma_m = np.sqrt(hess_inv[0, 0])  # Uncertainty in gradient
 sigma_c = np.sqrt(hess_inv[1, 1])  # Uncertainty in intercept
 
-x_interp = 0.11  # Example x value for interpolation
-sigma_y = np.sqrt((x_interp**2)*(sigma_m**2) + sigma_c**2)
 
+#Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
+W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
+W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
+W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
-#Linearly interpolating to get interpolated flux on a value in between the data points.
-if w == 0:
-    W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-    W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
-    W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-    W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+W1_SDSS_unc_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_av_uncs_flux)
+W2_SDSS_unc_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_av_uncs_flux)
+W1_DESI_unc_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_av_uncs_flux)
+W2_DESI_unc_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_av_uncs_flux)
 
-    W1_SDSS_unc_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_av_uncs_flux)
-    W2_SDSS_unc_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_av_uncs_flux)
-    W1_DESI_unc_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_av_uncs_flux)
-    W2_DESI_unc_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_av_uncs_flux)
-
-if w == 0:
-    #If uncertainty = nan; then z score = nan
-    #If uncertainty = 0; then z score = inf
-    print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
-    print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
-    print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
-    print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
-    print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
-    print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
+#If uncertainty = nan; then z score = nan
+#If uncertainty = 0; then z score = inf
+print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
+print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
+print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
+print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
+print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
+print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(12,7))
@@ -849,75 +785,75 @@ if w == 0:
 # plt.show()
 
 
-# Making a big figure with flux & SDSS, DESI spectra added in
-fig = plt.figure(figsize=(12, 7)) # (width, height)
-gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+# # Making a big figure with flux & SDSS, DESI spectra added in
+# fig = plt.figure(figsize=(12, 7)) # (width, height)
+# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# Top plot spanning two columns and three rows (ax1)
-ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
-# ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
-ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-ax1.set_xlabel('Days since first observation')
-ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax1.set_title(f'Flux vs Time ({object_name})')
-ax1.legend(loc='best')
+# # Top plot spanning two columns and three rows (ax1)
+# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+# ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
+# # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
+# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+# ax1.set_xlabel('Days since first observation')
+# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax1.set_title(f'Flux vs Time ({object_name})')
+# ax1.legend(loc='best')
 
-# Bottom left plot spanning 2 rows and 1 column (ax2)
-ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-if SDSS_min <= H_alpha <= SDSS_max:
-    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-if SDSS_min <= H_beta <= SDSS_max:
-    ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-if SDSS_min <= Mg2 <= SDSS_max:
-    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-if SDSS_min <= C3_ <= SDSS_max:
-    ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-if SDSS_min <= C4 <= SDSS_max:
-    ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# if SDSS_min <= _O3_ <= SDSS_max:
-#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-if SDSS_min <= Ly_alpha <= SDSS_max:
-    ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-if SDSS_min <= Ly_beta <= SDSS_max:
-    ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-ax2.set_xlabel('Wavelength / Å')
-ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-ax2.legend(loc='upper right')
+# # Bottom left plot spanning 2 rows and 1 column (ax2)
+# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+# if SDSS_min <= H_alpha <= SDSS_max:
+#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+# if SDSS_min <= H_beta <= SDSS_max:
+#     ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+# if SDSS_min <= Mg2 <= SDSS_max:
+#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+# if SDSS_min <= C3_ <= SDSS_max:
+#     ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+# if SDSS_min <= C4 <= SDSS_max:
+#     ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# # if SDSS_min <= _O3_ <= SDSS_max:
+# #     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+# if SDSS_min <= Ly_alpha <= SDSS_max:
+#     ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+# if SDSS_min <= Ly_beta <= SDSS_max:
+#     ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+# ax2.set_xlabel('Wavelength / Å')
+# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+# ax2.legend(loc='upper right')
 
-# Bottom right plot spanning 2 rows and 1 column (ax3)
-ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-if DESI_min <= H_alpha <= DESI_max:
-    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-if DESI_min <= H_beta <= DESI_max:
-    ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-if DESI_min <= Mg2 <= DESI_max:
-    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-if DESI_min <= C3_ <= DESI_max:
-    ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-if DESI_min <= C4 <= DESI_max:
-    ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# if DESI_min <= _O3_ <= DESI_max:
-#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-if DESI_min <= Ly_alpha <= DESI_max:
-    ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-if DESI_min <= Ly_beta <= DESI_max:
-    ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-ax3.set_xlabel('Wavelength / Å')
-ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-ax3.legend(loc='upper right')
+# # Bottom right plot spanning 2 rows and 1 column (ax3)
+# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+# if DESI_min <= H_alpha <= DESI_max:
+#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+# if DESI_min <= H_beta <= DESI_max:
+#     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+# if DESI_min <= Mg2 <= DESI_max:
+#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+# if DESI_min <= C3_ <= DESI_max:
+#     ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+# if DESI_min <= C4 <= DESI_max:
+#     ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# # if DESI_min <= _O3_ <= DESI_max:
+# #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+# if DESI_min <= Ly_alpha <= DESI_max:
+#     ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+# if DESI_min <= Ly_beta <= DESI_max:
+#     ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+# ax3.set_xlabel('Wavelength / Å')
+# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+# ax3.legend(loc='upper right')
 
-fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-#top and bottom adjust the vertical space on the top and bottom of the figure.
-#left and right adjust the horizontal space on the left and right sides.
-#hspace and wspace adjust the spacing between rows and columns, respectively.
-plt.show()
+# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+# #top and bottom adjust the vertical space on the top and bottom of the figure.
+# #left and right adjust the horizontal space on the left and right sides.
+# #hspace and wspace adjust the spacing between rows and columns, respectively.
+# plt.show()
