@@ -3,7 +3,7 @@ import pyspeckit
 from astropy.io import fits
 
 # Load the .fits file to inspect its structure
-file_path = 'spec-8521-58175-0279.fits'
+file_path = 'clagn_spectra/spec-8521-58175-0279.fits'
 with fits.open(file_path) as hdul:
     hdul.info()
 #creating a spectrum from scratch. LOOK AT OTHER EXAMPLES, understand whats going on and can combine the examples
@@ -19,7 +19,7 @@ SIIb = 6732.68
 # Initialize spectrum object and plot region surrounding Halpha-[NII] complex
 
 # spec = pyspeckit.Spectrum('sample_sdss.txt', errorcol=2)
-spec = pyspeckit.spectrum.readers.fits_reader.open_1d_fits('spec-8521-58175-0279.fits', hdu=0, wcstype='', specnum=0, errspecnum=1)
+spec = pyspeckit.spectrum.readers.fits_reader.open_1d_fits('clagn_spectra/spec-8521-58175-0279.fits', hdu=0, wcstype='', specnum=0, errspecnum=1)
 
 spec.plotter(xmin = 6450, xmax = 6775, ymin = 0, ymax = 150)
 

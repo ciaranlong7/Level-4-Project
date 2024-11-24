@@ -12,12 +12,12 @@ Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 # #random list of object names taken from parent catalogue
-object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
-                '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
-                '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
-                '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
-                '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-                '115625.26+270312.0']
+# object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
+#                 '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
+#                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
+#                 '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
+#                 '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
+#                 '115625.26+270312.0']
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -223,8 +223,16 @@ for object_name in object_names:
     before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
     before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
-
-    if q == 0 and w == 0 and e == 0 and r == 0:
+    if q == 0 and w == 0 and e == 0 and r == 0: #confirming that SDSS & DESI observations lie within the MIR observations
+        #eliminating objects where there are 2 or more missing epochs around the SDSS & DESI observations.
+        if W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1] > 400:
+            continue
+        elif W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400:
+            continue
+        elif W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1] > 400:
+            continue
+        elif W1_av_mjd_date[after_DESI_index_W2] - W1_av_mjd_date[before_DESI_index_W2] > 400:
+            continue
 
         #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
         W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
@@ -255,7 +263,7 @@ for object_name in object_names:
         continue
 
 #for loop now ended
-z_score_data = {
+quantifying_change_data = {
     "Object": object_names_list,
 
     "W1 Z Score SDSS vs DESI": W1_SDSS_DESI,
@@ -270,7 +278,7 @@ z_score_data = {
 }
 
 # Convert the data into a DataFrame
-df = pd.DataFrame(z_score_data)
+df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
 df.to_csv("CLAGN_Quantifying_Change.csv", index=False)

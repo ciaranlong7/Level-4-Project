@@ -13,6 +13,10 @@ from dust_extinction.parameter_averages import G23
 from astropy.io.fits.hdu.hdulist import HDUList
 from astroquery.sdss import SDSS
 # from sparcl.client import SparclClient
+from astropy.table import Table, vstack, join
+import os
+# import fitsio
+# import desispec.io
 quantity_support()  # for getting units on the axes below
 
 c = 299792458
@@ -95,6 +99,7 @@ A_vi = hdul[0].header['REDDEN04']  # Median extinction in i-band
 A_vz = hdul[0].header['REDDEN05']  # Median extinction in z-band
 
 # #New DESI spectrum retrieval method
+# from - https://github.com/astro-datalab/notebooks-latest/blob/master/03_ScienceExamples/DESI/01_Intro_to_DESI_EDR.ipynb
 # inc = ['specid', 'redshift', 'flux', 'wavelength', 'spectype', 'specprimary', 'survey', 'program', 'targetid', 'coadd_fiberstatus']
 # res = client.retrieve_by_specid(specid_list = [DESI_name], include = inc, dataset_list = ['DESI-EDR'])
 
@@ -104,6 +109,54 @@ A_vz = hdul[0].header['REDDEN05']  # Median extinction in z-band
 # primary_ii = np.where(spec_primary == True)[0][0]
 # lam_primary = records[primary_ii].wavelength
 # flam_primary = records[primary_ii].flux
+
+# #Even newer DESI data retrieval method:
+#from - https://github.com/desihub/tutorials/blob/main/getting_started/EDR_AnalyzeZcat.ipynb
+# Release directory path
+# specprod = "fuji"    # Internal name for the EDR
+# specprod_dir = "/global/cfs/cdirs/desi/public/edr/spectro/redux/fuji/"
+
+# fujidata = Table(fitsio.read(os.path.join(specprod_dir, "zcatalog", "zall-pix-{}.fits".format(specprod))))
+
+# #-- SV1/2/3
+# is_sv1 = (fujidata["SURVEY"].astype(str).data == "sv1")
+# is_sv2 = (fujidata["SURVEY"].astype(str).data == "sv2")
+# is_sv3 = (fujidata["SURVEY"].astype(str).data == "sv3")
+
+# #-- all SV data
+# is_sv = (is_sv1 | is_sv2 | is_sv3)
+
+# #-- commissioning data
+# is_cmx = (fujidata["SURVEY"].astype(str).data == "cmx")
+
+# #-- special tiles
+# is_special = (fujidata["SURVEY"].astype(str).data == "special")
+
+# def get_spec_data(tid, survey=None, program=None):
+#     #-- the index of the specific target can be uniquely determined with the combination of TARGETID, SURVEY, and PROGRAM
+#     idx = np.where( (fujidata["TARGETID"]==tid) & (fujidata["SURVEY"]==survey) & (fujidata["PROGRAM"]==program) )[0][0]
+
+#     #-- healpix values are integers but are converted here into a string for easier access to the file path
+#     hpx = fujidata["HEALPIX"].astype(str)
+
+#     if "sv" in survey:
+#         specprod = "fuji"
+
+#     specprod_dir = f"/global/cfs/cdirs/desi/spectro/redux/{specprod}"
+#     target_dir   = f"{specprod_dir}/healpix/{survey}/{program}/{hpx[idx][:-2]}/{hpx[idx]}"
+#     coadd_fname  = f"coadd-{survey}-{program}-{hpx[idx]}.fits"
+
+#     #-- read in the spectra with desispec
+#     coadd_obj  = desispec.io.read_spectra(f"{target_dir}/{coadd_fname}")
+#     coadd_tgts = coadd_obj.target_ids().data
+
+#     #-- select the spectrum of  targetid
+#     row = ( coadd_tgts==fujidata["TARGETID"][idx] )
+#     coadd_spec = coadd_obj[row]
+
+#     return coadd_spec
+
+# sv3_dark_gal = get_spec_data(DESI_name, survey="sv3", program="dark")
 
 #Open the DESI file
 DESI_file_path = f'clagn_spectra/{DESI_file}'
@@ -573,54 +626,27 @@ before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_da
 before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
 before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
-# if q == 0 & w == 0 & e == 0 & r == 0:
+if q == 0 and w == 0 and e == 0 and r == 0:
     
-#     #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
-#     W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-#     W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
-#     W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-#     W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
-
-#     W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-#     W2_SDSS_unc_interp = np.sqrt(((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + ((((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2]))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
-#     W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
-#     W2_DESI_unc_interp = np.sqrt(((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + ((((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2]))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
-
-if q == 0 and e == 0: # W1 data has SDSS & DESI inside
+    #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
     W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-    W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-
-    W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-    W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
-else: #W1 data not inside
-    W1_SDSS_interp = np.nan
-    W1_DESI_interp = np.nan
-
-    W1_SDSS_unc_interp = np.nan
-    W1_DESI_unc_interp = np.nan
-
-
-if w == 0 and r == 0: # W2 data has SDSS & DESI inside
     W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+    W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
     W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
+    W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
     W2_SDSS_unc_interp = np.sqrt(((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + ((((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2]))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+    W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
     W2_DESI_unc_interp = np.sqrt(((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + ((((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2]))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
-else: #W2 data not inside
-    W2_SDSS_interp = np.nan
-    W2_DESI_interp = np.nan
 
-    W2_SDSS_unc_interp = np.nan
-    W2_DESI_unc_interp = np.nan
-
-#If uncertainty = nan; then z score = nan
-#If uncertainty = 0; then z score = inf
-print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
-print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
-print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
-print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
-print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
-print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
+    #If uncertainty = nan; then z score = nan
+    #If uncertainty = 0; then z score = inf
+    print(f'W1 absolute change - SDSS relative to DESI = {abs(W1_SDSS_interp-W1_DESI_interp)}')
+    print(f'W1 z score - SDSS relative to DESI = {(W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)}')
+    print(f'W1 z score - DESI relative to SDSS = {(W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)}')
+    print(f'W2 z score - SDSS relative to DESI = {(W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)}')
+    print(f'W2 absolute change - SDSS relative to DESI = {abs(W2_SDSS_interp-W2_DESI_interp)}')
+    print(f'W2 z score - DESI relative to SDSS = {(W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)}')
 
 # # Plotting average W1 & W2 mags (or flux) vs days since first observation
 # plt.figure(figsize=(12,7))
