@@ -1,13 +1,21 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import pandas as pd
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
-from astropy.visualization import quantity_support
+from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.coordinates import SkyCoord
 from astroquery.ipac.irsa import Irsa
-quantity_support()  # for getting units on the axes below
+from astropy.io.fits.hdu.hdulist import HDUList
+from astroquery.sdss import SDSS
+from sparcl.client import SparclClient
+from dl import queryClient as qc
+import sfdmap
+from dust_extinction.parameter_averages import G23
 
 c = 299792458
 
+#When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
@@ -17,7 +25,9 @@ object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna
 #                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
 #                 '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
 #                 '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-#                 '115625.26+270312.0']
+#                 '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
+#                 '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
+#                 '122256.17+555533.3']
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -25,25 +35,29 @@ def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, ta
 
 W1_k = 309.540 #Janskys. This means that mag 0 = 309.540 Janskys at the W1 wl.
 W2_k = 171.787
-g_k = 3991
-r_k = 3174
 W1_wl = 3.4e4 #Angstroms
 W2_wl = 4.6e4
-g_wl = 0.467e4
-r_wl = 0.616e4
 
 object_names_list = [] #Keeps track of objects that met MIR data requirements to take z score & absolute change
 
 # z_score & absolute change lists
 W1_SDSS_DESI = []
+W1_SDSS_DESI_unc = []
 W1_DESI_SDSS = []
+W1_DESI_SDSS_unc = []
 W1_abs_change = []
+W1_abs_change_unc = []
 W1_abs_change_norm = []
+W1_abs_change_norm_unc = []
 
 W2_SDSS_DESI = []
+W2_SDSS_DESI_unc = []
 W2_DESI_SDSS = []
+W2_DESI_SDSS_unc = []
 W2_abs_change = []
+W2_abs_change_unc = []
 W2_abs_change_norm = []
+W2_abs_change_norm_unc = []
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -240,24 +254,259 @@ for object_name in object_names:
         W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
         W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
-        W1_SDSS_unc_interp = np.sqrt(((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + ((((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1]))/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-        W2_SDSS_unc_interp = np.sqrt(((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + ((((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2]))/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
-        W1_DESI_unc_interp = np.sqrt(((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + ((((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1]))/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
-        W2_DESI_unc_interp = np.sqrt(((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + ((((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2]))/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
-        
+        #uncertainties in interpolated flux
+        W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
+        W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+        W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
+        W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+
+        #uncertainty in absolute flux change
+        W1_abs = abs(W1_SDSS_interp-W1_DESI_interp)
+        W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
+        W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
+        W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
+
+        #uncertainty in normalised flux change
+        W1_av_unc = np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
+        W1_abs_norm = ((W1_abs)/(np.average(W1_averages_flux)))
+        W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.average(W1_averages_flux)))**2)
+        W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
+        W2_abs_norm = ((W2_abs)/(np.average(W2_averages_flux)))
+        W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.average(W2_averages_flux)))**2)
+
+        #uncertainty in z score
+        W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
+        W1_z_score_SDSS_DESI_unc = W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs))
+        W1_z_score_DESI_SDSS = (W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)
+        W1_z_score_DESI_SDSS_unc = W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs))
+        W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
+        W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+        W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
+        W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
+
         object_names_list.append(object_name)
 
         #If uncertainty = nan; then z score = nan
         #If uncertainty = 0; then z score = inf
-        W1_SDSS_DESI.append((W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp))
-        W1_DESI_SDSS.append((W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp))
-        W1_abs_change.append(abs(W1_SDSS_interp-W1_DESI_interp)) #normalise this with the mean/median flux value?
-        W1_abs_change_norm.append(abs((W1_SDSS_interp-W1_DESI_interp))/(np.average(W1_averages_flux)))
+        W1_SDSS_DESI.append(W1_z_score_SDSS_DESI)
+        W1_SDSS_DESI_unc.append(W1_z_score_SDSS_DESI_unc)
+        W1_DESI_SDSS.append(W1_z_score_DESI_SDSS)
+        W1_DESI_SDSS_unc.append(W1_z_score_DESI_SDSS_unc)
+        W1_abs_change.append(W1_abs)
+        W1_abs_change_unc.append(W1_abs_unc)
+        W1_abs_change_norm.append(W1_abs_norm)
+        W1_abs_change_norm_unc.append(W1_abs_norm_unc)
 
-        W2_SDSS_DESI.append((W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp))
-        W2_DESI_SDSS.append((W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp))
-        W2_abs_change.append(abs(W2_SDSS_interp-W2_DESI_interp))
-        W2_abs_change_norm.append(abs((W2_SDSS_interp-W2_DESI_interp)/(np.average(W2_averages_flux))))
+        W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
+        W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
+        W2_DESI_SDSS.append(W2_z_score_DESI_SDSS)
+        W2_DESI_SDSS_unc.append(W2_z_score_DESI_SDSS_unc)
+        W2_abs_change.append(W2_abs)
+        W2_abs_change_unc.append(W2_abs_unc)
+        W2_abs_change_norm.append(W2_abs_norm)
+        W2_abs_change_norm_unc.append(W2_abs_norm_unc)
+
+
+        SDSS_plate_number = object_data.iloc[0, 5]
+        SDSS_fiberid_number = object_data.iloc[0, 7]
+        SDSS_z = object_data.iloc[0, 3]
+        DESI_z = object_data.iloc[0, 10]
+        DESI_name = object_data.iloc[0, 11]
+
+        #Automatically querying the SDSS database
+        downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
+        downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+
+        hdul = HDUList(downloaded_SDSS_spec.get_fits())
+        subset = hdul[1]
+
+        #SDSS Spectrum information
+        sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+        sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+
+        #DESI spectrum retrieval method
+        def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+            """
+            Retrieves the primary spectrum's wavelength and flux for a given target ID.
+
+            Parameters:
+            - targetid (int): The target ID of the object.
+
+            Returns:
+            - lam_primary (array): Wavelength data for the primary spectrum.
+            - flam_primary (array): Flux data for the primary spectrum.
+            """
+            # Initialize SparclClient
+            client = SparclClient()
+            
+            # Get all available fields
+            inc = client.get_all_fields()
+
+            # Retrieve the spectrum by target ID
+            res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
+
+            # Extract records
+            records = res.records
+
+            if not records: #no spectrum could be found:
+                print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+
+                try:
+                    DESI_file = f'spectrum_desi_{object_name}.csv'
+                    DESI_file_path = f'clagn_spectra/{DESI_file}'
+                    DESI_spec = pd.read_csv(DESI_file_path)
+                    desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+                    desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+                    print('DESI file is in downloads - will proceed as normal')
+                    return desi_lamb, desi_flux
+                except FileNotFoundError as e:
+                    print('No DESI file already downloaded.')
+                    return [], []
+
+            # Identify the primary spectrum
+            spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
+
+            if not np.any(spec_primary):
+                print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+
+                try:
+                    DESI_file = f'spectrum_desi_{object_name}.csv'
+                    DESI_file_path = f'clagn_spectra/{DESI_file}'
+                    DESI_spec = pd.read_csv(DESI_file_path)
+                    desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+                    desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+                    print('DESI file is in downloads - will proceed as normal')
+                    return desi_lamb, desi_flux
+                except FileNotFoundError as e:
+                    print('No DESI file already downloaded.')
+                    return [], []
+
+            # Get the index of the primary spectrum
+            primary_ii = np.where(spec_primary == True)[0][0]
+
+            # Extract wavelength and flux for the primary spectrum
+            desi_lamb = records[primary_ii].wavelength
+            desi_flux = records[primary_ii].flux
+
+            return desi_lamb, desi_flux
+
+        target_id = int(DESI_name)
+        desi_lamb, desi_flux = get_primary_spectrum(target_id)
+
+        sfd = sfdmap.SFDMap('SFD_dust_files') #it says SFD - but the values are the same as S&F - I have checked for multiple objects
+        ebv = sfd.ebv(coord)
+
+        ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
+        inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
+        inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
+        sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
+        desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
+
+        sdss_lamb = (sdss_lamb/(1+SDSS_z))
+        desi_lamb = (desi_lamb/(1+DESI_z))
+
+        gaussian_kernel = Gaussian1DKernel(stddev=3)
+
+        # Smooth the flux data using the Gaussian kernel
+        Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
+        if len(desi_flux) > 0:
+            Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+        else:
+            Gaus_smoothed_DESI = []
+        
+        #BELs
+        H_alpha = 6562.819
+        H_beta = 4861.333
+        Mg2 = 2795.528
+        C3_ = 1908.734
+        C4 = 1548.187
+        Ly_alpha = 1215.670
+        Ly_beta = 1025.722
+        #NEL
+        _O3_ = 5006.843 #underscores indicate square brackets
+        #Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
+        SDSS_min = min(sdss_lamb)
+        SDSS_max = max(sdss_lamb)
+        if len(desi_lamb) > 0:
+            DESI_min = min(desi_lamb)
+            DESI_max = max(desi_lamb)
+        else:
+            DESI_min = 0
+            DESI_max = 1
+        
+        # Making a big figure with flux & SDSS, DESI spectra added in
+        fig = plt.figure(figsize=(12, 7)) # (width, height)
+        gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+
+        # Top plot spanning two columns and three rows (ax1)
+        ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+        ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+        ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+        # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
+        # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
+        ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+        ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+        ax1.set_xlabel('Days since first observation')
+        ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+        ax1.set_title(f'Flux vs Time ({object_name})')
+        ax1.legend(loc='best')
+
+        # Bottom left plot spanning 2 rows and 1 column (ax2)
+        ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+        ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+        ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+        if SDSS_min <= H_alpha <= SDSS_max:
+            ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+        if SDSS_min <= H_beta <= SDSS_max:
+            ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+        if SDSS_min <= Mg2 <= SDSS_max:
+            ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+        if SDSS_min <= C3_ <= SDSS_max:
+            ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+        if SDSS_min <= C4 <= SDSS_max:
+            ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+        # if SDSS_min <= _O3_ <= SDSS_max:
+        #     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+        if SDSS_min <= Ly_alpha <= SDSS_max:
+            ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+        if SDSS_min <= Ly_beta <= SDSS_max:
+            ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+        ax2.set_xlabel('Wavelength / Å')
+        ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+        ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+        ax2.legend(loc='upper right')
+
+        # Bottom right plot spanning 2 rows and 1 column (ax3)
+        ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+        ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+        ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+        if DESI_min <= H_alpha <= DESI_max:
+            ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+        if DESI_min <= H_beta <= DESI_max:
+            ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+        if DESI_min <= Mg2 <= DESI_max:
+            ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+        if DESI_min <= C3_ <= DESI_max:
+            ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+        if DESI_min <= C4 <= DESI_max:
+            ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+        # if DESI_min <= _O3_ <= DESI_max:
+        #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+        if DESI_min <= Ly_alpha <= DESI_max:
+            ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+        if DESI_min <= Ly_beta <= DESI_max:
+            ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+        ax3.set_xlabel('Wavelength / Å')
+        ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+        ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+        ax3.legend(loc='upper right')
+
+        fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+        #top and bottom adjust the vertical space on the top and bottom of the figure.
+        #left and right adjust the horizontal space on the left and right sides.
+        #hspace and wspace adjust the spacing between rows and columns, respectively.
+
+        fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 
     else:
         continue
@@ -267,14 +516,22 @@ quantifying_change_data = {
     "Object": object_names_list,
 
     "W1 Z Score SDSS vs DESI": W1_SDSS_DESI,
+    "W1 Z Score SDSS vs DESI Unc": W1_SDSS_DESI_unc,
     "W1 Z Score DESI vs SDSS": W1_DESI_SDSS,
+    "W1 Z Score DESI vs SDSS Unc": W1_DESI_SDSS_unc,
     "W1 Flux Change": W1_abs_change,
+    "W1 Flux Change Unc": W1_abs_change_unc,
     "W1 Normalised Flux Change": W1_abs_change_norm,
+    "W1 Normalised Flux Change Unc": W1_abs_change_norm_unc,
 
     "W2 Z Score SDSS vs DESI": W2_SDSS_DESI,
+    "W2 Z Score SDSS vs DESI Unc": W2_SDSS_DESI_unc,
     "W2 Z Score DESI vs SDSS": W2_DESI_SDSS,
+    "W2 Z Score DESI vs SDSS Unc": W2_DESI_SDSS_unc,
     "W2 Flux Change": W2_abs_change,
+    "W2 Flux Change Unc": W2_abs_change_unc,
     "W2 Normalised Flux Change": W2_abs_change_norm,
+    "W2 Normalised Flux Change Unc": W2_abs_change_norm_unc,
 }
 
 # Convert the data into a DataFrame
