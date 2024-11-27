@@ -16,18 +16,18 @@ from dust_extinction.parameter_averages import G23
 c = 299792458
 
 #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
-# #random list of object names taken from parent catalogue
-object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
-                '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
-                '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
-                '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
-                '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-                '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
-                '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
-                '122256.17+555533.3']
+# # #random list of object names taken from parent catalogue
+# object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
+#                 '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
+#                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
+#                 '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
+#                 '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
+#                 '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
+#                 '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
+#                 '122256.17+555533.3']
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -49,6 +49,7 @@ W1_abs_change = []
 W1_abs_change_unc = []
 W1_abs_change_norm = []
 W1_abs_change_norm_unc = []
+W1_dps = []
 
 W2_SDSS_DESI = []
 W2_SDSS_DESI_unc = []
@@ -58,6 +59,7 @@ W2_abs_change = []
 W2_abs_change_unc = []
 W2_abs_change_norm = []
 W2_abs_change_norm_unc = []
+W2_dps = []
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -251,7 +253,7 @@ for object_name in object_names:
         elif W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1] > 400:
             print('400 day gap')
             continue
-        elif W1_av_mjd_date[after_DESI_index_W2] - W1_av_mjd_date[before_DESI_index_W2] > 400:
+        elif W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2] > 400:
             print('400 day gap')
             continue
 
@@ -303,6 +305,7 @@ for object_name in object_names:
         W1_abs_change_unc.append(W1_abs_unc)
         W1_abs_change_norm.append(W1_abs_norm)
         W1_abs_change_norm_unc.append(W1_abs_norm_unc)
+        W1_dps.append(len(W1_mag))
 
         W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
         W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
@@ -312,7 +315,7 @@ for object_name in object_names:
         W2_abs_change_unc.append(W2_abs_unc)
         W2_abs_change_norm.append(W2_abs_norm)
         W2_abs_change_norm_unc.append(W2_abs_norm_unc)
-
+        W2_dps.append(len(W2_mag))
 
         SDSS_plate_number = object_data.iloc[0, 5]
         SDSS_fiberid_number = object_data.iloc[0, 7]
@@ -513,9 +516,10 @@ for object_name in object_names:
         #hspace and wspace adjust the spacing between rows and columns, respectively.
 
         # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
-        fig.savefig(f'./AGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
+        fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 
     else:
+        print('SDSS or DESI lie outside MIR observations in W1 or W2')
         continue
 
 #for loop now ended
@@ -539,6 +543,9 @@ quantifying_change_data = {
     "W2 Flux Change Unc": W2_abs_change_unc,
     "W2 Normalised Flux Change": W2_abs_change_norm,
     "W2 Normalised Flux Change Unc": W2_abs_change_norm_unc,
+
+    "W1 Data Points": W1_dps,
+    "W2 Data Points": W2_dps,
 }
 
 # Convert the data into a DataFrame
@@ -546,4 +553,4 @@ df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
 # df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
-df.to_csv("AGN_Quantifying_Change.csv", index=False)
+df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
