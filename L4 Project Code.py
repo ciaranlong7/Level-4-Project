@@ -8,13 +8,15 @@ from astropy import units as u #In Astropy, a Quantity object combines a numeric
 from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.visualization import quantity_support
 from astropy.coordinates import SkyCoord
+import sfdmap
 from astroquery.ipac.irsa import Irsa
 from dust_extinction.parameter_averages import G23
 from astropy.io.fits.hdu.hdulist import HDUList
+# from astropy.table import Table
 from astroquery.sdss import SDSS
-# from sparcl.client import SparclClient
-from astropy.table import Table, vstack, join
-import os
+from sparcl.client import SparclClient
+from dl import queryClient as qc
+# import os
 # import fitsio
 # import desispec.io
 quantity_support()  # for getting units on the axes below
@@ -29,8 +31,8 @@ c = 299792458
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
 #get SDSS & DESI filenames:
-object_name = '152517.57+401357.6' #Object A - assigned to me
-# object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
+# object_name = '152517.57+401357.6' #Object A - assigned to me
+object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
@@ -75,7 +77,6 @@ DESI_mjd = object_data.iloc[0, 12]
 SDSS_z = object_data.iloc[0, 3]
 DESI_z = object_data.iloc[0, 10]
 DESI_name = object_data.iloc[0, 11]
-DESI_file = f'spectrum_desi_{object_name}.csv'
 
 # print('MIR Search (RA ±DEC):')
 # print(f'{SDSS_RA} {SDSS_DEC:+}')
@@ -92,97 +93,88 @@ sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
 sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
 sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
-A_vu = hdul[0].header['REDDEN01']  # Median extinction in u-band
-A_vg = hdul[0].header['REDDEN02']  # Median extinction in g-band
-A_vr = hdul[0].header['REDDEN03']  # Median extinction in r-band
-A_vi = hdul[0].header['REDDEN04']  # Median extinction in i-band
-A_vz = hdul[0].header['REDDEN05']  # Median extinction in z-band
-
-# #New DESI spectrum retrieval method
+#DESI spectrum retrieval method
 # from - https://github.com/astro-datalab/notebooks-latest/blob/master/03_ScienceExamples/DESI/01_Intro_to_DESI_EDR.ipynb
-# inc = ['specid', 'redshift', 'flux', 'wavelength', 'spectype', 'specprimary', 'survey', 'program', 'targetid', 'coadd_fiberstatus']
-# res = client.retrieve_by_specid(specid_list = [DESI_name], include = inc, dataset_list = ['DESI-EDR'])
+def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+    """
+    Retrieves the primary spectrum's wavelength and flux for a given target ID.
 
-# records = res.records
-# ## Select the primary spectrum
-# spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
-# primary_ii = np.where(spec_primary == True)[0][0]
-# lam_primary = records[primary_ii].wavelength
-# flam_primary = records[primary_ii].flux
+    Parameters:
+    - targetid (int): The target ID of the object.
 
-# #Even newer DESI data retrieval method:
-#from - https://github.com/desihub/tutorials/blob/main/getting_started/EDR_AnalyzeZcat.ipynb
-# Release directory path
-# specprod = "fuji"    # Internal name for the EDR
-# specprod_dir = "/global/cfs/cdirs/desi/public/edr/spectro/redux/fuji/"
+    Returns:
+    - lam_primary (array): Wavelength data for the primary spectrum.
+    - flam_primary (array): Flux data for the primary spectrum.
+    """
+    # Initialize SparclClient
+    client = SparclClient()
+    
+    # Get all available fields
+    inc = client.get_all_fields()
 
-# fujidata = Table(fitsio.read(os.path.join(specprod_dir, "zcatalog", "zall-pix-{}.fits".format(specprod))))
+    # Retrieve the spectrum by target ID
+    res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
 
-# #-- SV1/2/3
-# is_sv1 = (fujidata["SURVEY"].astype(str).data == "sv1")
-# is_sv2 = (fujidata["SURVEY"].astype(str).data == "sv2")
-# is_sv3 = (fujidata["SURVEY"].astype(str).data == "sv3")
+    # Extract records
+    records = res.records
 
-# #-- all SV data
-# is_sv = (is_sv1 | is_sv2 | is_sv3)
+    if not records: #no spectrum could be found:
+        print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
 
-# #-- commissioning data
-# is_cmx = (fujidata["SURVEY"].astype(str).data == "cmx")
+        try:
+            DESI_file = f'spectrum_desi_{object_name}.csv'
+            DESI_file_path = f'clagn_spectra/{DESI_file}'
+            DESI_spec = pd.read_csv(DESI_file_path)
+            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+            print('DESI file is in downloads - will proceed as normal')
+            return desi_lamb, desi_flux
+        except FileNotFoundError as e:
+            print('No DESI file already downloaded.')
+            return [], []
 
-# #-- special tiles
-# is_special = (fujidata["SURVEY"].astype(str).data == "special")
+    # Identify the primary spectrum
+    spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
 
-# def get_spec_data(tid, survey=None, program=None):
-#     #-- the index of the specific target can be uniquely determined with the combination of TARGETID, SURVEY, and PROGRAM
-#     idx = np.where( (fujidata["TARGETID"]==tid) & (fujidata["SURVEY"]==survey) & (fujidata["PROGRAM"]==program) )[0][0]
+    if not np.any(spec_primary):
+        print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
 
-#     #-- healpix values are integers but are converted here into a string for easier access to the file path
-#     hpx = fujidata["HEALPIX"].astype(str)
+        try:
+            DESI_file = f'spectrum_desi_{object_name}.csv'
+            DESI_file_path = f'clagn_spectra/{DESI_file}'
+            DESI_spec = pd.read_csv(DESI_file_path)
+            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+            print('DESI file is in downloads - will proceed as normal')
+            return desi_lamb, desi_flux
+        except FileNotFoundError as e:
+            print('No DESI file already downloaded.')
+            return [], []
 
-#     if "sv" in survey:
-#         specprod = "fuji"
+    # Get the index of the primary spectrum
+    primary_ii = np.where(spec_primary == True)[0][0]
 
-#     specprod_dir = f"/global/cfs/cdirs/desi/spectro/redux/{specprod}"
-#     target_dir   = f"{specprod_dir}/healpix/{survey}/{program}/{hpx[idx][:-2]}/{hpx[idx]}"
-#     coadd_fname  = f"coadd-{survey}-{program}-{hpx[idx]}.fits"
+    # Extract wavelength and flux for the primary spectrum
+    desi_lamb = records[primary_ii].wavelength
+    desi_flux = records[primary_ii].flux
 
-#     #-- read in the spectra with desispec
-#     coadd_obj  = desispec.io.read_spectra(f"{target_dir}/{coadd_fname}")
-#     coadd_tgts = coadd_obj.target_ids().data
+    return desi_lamb, desi_flux
 
-#     #-- select the spectrum of  targetid
-#     row = ( coadd_tgts==fujidata["TARGETID"][idx] )
-#     coadd_spec = coadd_obj[row]
+target_id = int(DESI_name)
+desi_lamb, desi_flux = get_primary_spectrum(target_id)
 
-#     return coadd_spec
+coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
 
-# sv3_dark_gal = get_spec_data(DESI_name, survey="sv3", program="dark")
-
-#Open the DESI file
-DESI_file_path = f'clagn_spectra/{DESI_file}'
-DESI_spec = pd.read_csv(DESI_file_path)
-desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
-
-E_BV1 = 0.86*(A_vu/4.239) # values taken from table 6 of Schlafly & Finkbeiner 2011. 0.86 value converts from an older E(B-V)_SFD model - see intro of Schlafly & Finkbeiner 2011
-E_BV2 = 0.86*(A_vg/3.303)
-E_BV3 = 0.86*(A_vr/2.285)
-E_BV4 = 0.86*(A_vi/1.698)
-E_BV5 = 0.86*(A_vz/1.263)
-mean_E_BV = np.average([E_BV1, E_BV2, E_BV3, E_BV4, E_BV5]) #Note, each of E_BVx are almost identical - calculating the mean reducing the effect of any rounding errors
-
-# print(E_BV1)
-# print(E_BV2)
-# print(E_BV3)
-# print(E_BV4)
-# print(E_BV5)
+sfd = sfdmap.SFDMap('SFD_dust_files') #it says SFD - but the values are the same as S&F - I have checked for multiple objects
+ebv = sfd.ebv(coord)
+print(f"E(B-V): {ebv}")
 
 ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
 # uncorrected_SDSS = sdss_flux
 inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
 inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
-sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=mean_E_BV) #divide to remove the effect of dust
-desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=mean_E_BV)
+sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
+desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
 # Correcting for redshift.
 sdss_lamb = (sdss_lamb/(1+SDSS_z))
@@ -212,7 +204,10 @@ gaussian_kernel = Gaussian1DKernel(stddev=3)
 
 # Smooth the flux data using the Gaussian kernel
 Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
-Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+if len(desi_flux) > 0:
+    Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+else:
+    Gaus_smoothed_DESI = []
 # Gaus_smoothed_SDSS_uncorrected = convolve(uncorrected_SDSS, gaussian_kernel)
 
 #BELs
@@ -228,8 +223,12 @@ _O3_ = 5006.843 #underscores indicate square brackets
 #Note there are other [O III] lines, such as: 4958.911 A, 4363.210 A
 SDSS_min = min(sdss_lamb)
 SDSS_max = max(sdss_lamb)
-DESI_min = min(desi_lamb)
-DESI_max = max(desi_lamb)
+if len(desi_lamb) > 0:
+    DESI_min = min(desi_lamb)
+    DESI_max = max(desi_lamb)
+else:
+    DESI_min = 0
+    DESI_max = 1
 
 # #Plot of SDSS Spectrum - Extinction Corrected vs Uncorrected
 # plt.figure(figsize=(12,7))
@@ -241,26 +240,26 @@ DESI_max = max(desi_lamb)
 # plt.legend(loc = 'upper right')
 # plt.show()
 
-# #Plot of SDSS Spectrum with uncertainties
-plt.figure(figsize=(12,7))
-plt.errorbar(sdss_lamb, sdss_flux, yerr=sdss_flux_unc, fmt='o', color = 'forestgreen', capsize=5)
-plt.xlabel('Wavelength / Å')
-plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-plt.title(f'SDSS Spectrum {object_name}')
-plt.show()
-
-#Plot of SDSS & DESI Spectra
+# # #Plot of SDSS Spectrum with uncertainties
 # plt.figure(figsize=(12,7))
-#Original unsmoothed spectrum
+# plt.errorbar(sdss_lamb, sdss_flux, yerr=sdss_flux_unc, fmt='o', color = 'forestgreen', capsize=5)
+# plt.xlabel('Wavelength / Å')
+# plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+# plt.title(f'SDSS Spectrum {object_name}')
+# plt.show()
+
+# # Plot of SDSS & DESI Spectra
+# plt.figure(figsize=(12,7))
+# # Original unsmoothed spectrum
 # plt.plot(sdss_lamb, sdss_flux, alpha = 0.2, color = 'forestgreen')
 # plt.plot(desi_lamb, desi_flux, alpha = 0.2, color = 'midnightblue')
-#Gausian smoothing
+# # Gausian smoothing
 # plt.plot(sdss_lamb, Gaus_smoothed_SDSS, color = 'forestgreen', label = 'SDSS')
 # plt.plot(desi_lamb, Gaus_smoothed_DESI, color = 'midnightblue', label = 'DESI')
-#Manual smoothing
-# plt.plot(sdss_lamb, SDSS_rolling, color = 'forestgreen', label = 'SDSS')
-# plt.plot(desi_lamb, DESI_rolling, color = 'midnightblue', label = 'DESI')
-#Adding in positions of emission lines
+# # # Manual smoothing
+# # plt.plot(sdss_lamb, SDSS_rolling, color = 'forestgreen', label = 'SDSS')
+# # plt.plot(desi_lamb, DESI_rolling, color = 'midnightblue', label = 'DESI')
+# # # Adding in positions of emission lines
 # if SDSS_min <= H_alpha <= SDSS_max:
 #     plt.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
 # if SDSS_min <= H_beta <= SDSS_max:
@@ -277,17 +276,17 @@ plt.show()
 #     plt.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
 # if SDSS_min <= Ly_beta <= SDSS_max:
 #     plt.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-#Axes labels
+# # Axes labels
 # plt.xlabel('Wavelength / Å')
 # plt.ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-#Two different titles (for Gaussian/Manual)
+# # Two different titles (for Gaussian/Manual)
 # plt.title('Gaussian Smoothed Plot of SDSS & DESI Spectra')
-# plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
+# # plt.title('Manually Smoothed Plot of SDSS & DESI Spectra')
 # plt.legend(loc = 'upper right')
 # plt.show()
 
 # Automatically querying catalogues
-coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
+coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
 # coord = SkyCoord(153.9007071, 22.1802528, unit='deg', frame='icrs') #1st Highly Variable AGN - object_name = J101536.17+221048.9
 WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
 NEOWISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
@@ -837,75 +836,75 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # plt.show()
 
 
-# # Making a big figure with flux & SDSS, DESI spectra added in
-# fig = plt.figure(figsize=(12, 7)) # (width, height)
-# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+# Making a big figure with flux & SDSS, DESI spectra added in
+fig = plt.figure(figsize=(12, 7)) # (width, height)
+gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# # Top plot spanning two columns and three rows (ax1)
-# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-# ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
-# # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
-# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-# ax1.set_xlabel('Days since first observation')
-# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax1.set_title(f'Flux vs Time ({object_name})')
-# ax1.legend(loc='best')
+# Top plot spanning two columns and three rows (ax1)
+ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
+# ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
+ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+ax1.set_xlabel('Days since first observation')
+ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax1.set_title(f'Flux vs Time ({object_name})')
+ax1.legend(loc='best')
 
-# # Bottom left plot spanning 2 rows and 1 column (ax2)
-# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C3_ <= SDSS_max:
-#     ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# # if SDSS_min <= _O3_ <= SDSS_max:
-# #     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# if SDSS_min <= Ly_alpha <= SDSS_max:
-#     ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-# if SDSS_min <= Ly_beta <= SDSS_max:
-#     ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-# ax2.set_xlabel('Wavelength / Å')
-# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-# ax2.legend(loc='upper right')
+# Bottom left plot spanning 2 rows and 1 column (ax2)
+ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C3_ <= SDSS_max:
+    ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+if SDSS_min <= C4 <= SDSS_max:
+    ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+if SDSS_min <= Ly_alpha <= SDSS_max:
+    ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+if SDSS_min <= Ly_beta <= SDSS_max:
+    ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+ax2.set_xlabel('Wavelength / Å')
+ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+ax2.legend(loc='upper right')
 
-# # Bottom right plot spanning 2 rows and 1 column (ax3)
-# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-# if DESI_min <= H_alpha <= DESI_max:
-#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if DESI_min <= H_beta <= DESI_max:
-#     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-# if DESI_min <= Mg2 <= DESI_max:
-#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if DESI_min <= C3_ <= DESI_max:
-#     ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-# if DESI_min <= C4 <= DESI_max:
-#     ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# # if DESI_min <= _O3_ <= DESI_max:
-# #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# if DESI_min <= Ly_alpha <= DESI_max:
-#     ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-# if DESI_min <= Ly_beta <= DESI_max:
-#     ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-# ax3.set_xlabel('Wavelength / Å')
-# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-# ax3.legend(loc='upper right')
+# Bottom right plot spanning 2 rows and 1 column (ax3)
+ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+if DESI_min <= H_alpha <= DESI_max:
+    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if DESI_min <= H_beta <= DESI_max:
+    ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+if DESI_min <= Mg2 <= DESI_max:
+    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if DESI_min <= C3_ <= DESI_max:
+    ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+if DESI_min <= C4 <= DESI_max:
+    ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# if DESI_min <= _O3_ <= DESI_max:
+#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+if DESI_min <= Ly_alpha <= DESI_max:
+    ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+if DESI_min <= Ly_beta <= DESI_max:
+    ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+ax3.set_xlabel('Wavelength / Å')
+ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+ax3.legend(loc='upper right')
 
-# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-# #top and bottom adjust the vertical space on the top and bottom of the figure.
-# #left and right adjust the horizontal space on the left and right sides.
-# #hspace and wspace adjust the spacing between rows and columns, respectively.
-# plt.show()
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#top and bottom adjust the vertical space on the top and bottom of the figure.
+#left and right adjust the horizontal space on the left and right sides.
+#hspace and wspace adjust the spacing between rows and columns, respectively.
+plt.show()
