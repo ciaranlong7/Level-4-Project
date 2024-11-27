@@ -16,18 +16,18 @@ from dust_extinction.parameter_averages import G23
 c = 299792458
 
 #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 # #random list of object names taken from parent catalogue
-# object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
-#                 '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
-#                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
-#                 '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
-#                 '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-#                 '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
-#                 '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
-#                 '122256.17+555533.3']
+object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
+                '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
+                '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
+                '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
+                '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
+                '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
+                '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
+                '122256.17+555533.3']
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -86,6 +86,7 @@ def find_closest_indices(x_vals, value):
 g = 0
 for object_name in object_names:
     print(g)
+    print(object_name)
     g += 1
     parent_sample = pd.read_csv('guo23_parent_sample.csv')
     object_data = parent_sample[parent_sample.iloc[:, 4] == object_name]
@@ -136,8 +137,10 @@ for object_name in object_names:
     W2_mag = [tup for tup in W2_mag if not np.isnan(tup[0])]
 
     if len(W1_mag) < 50: #want 50 data points as a minimum
+        print('less than 50 MIR')
         continue
     elif len(W2_mag) < 50:
+        print('less than 50 MIR')
         continue
 
     #Below code sorts MIR data.
@@ -240,12 +243,16 @@ for object_name in object_names:
     if q == 0 and w == 0 and e == 0 and r == 0: #confirming that SDSS & DESI observations lie within the MIR observations
         #eliminating objects where there are 2 or more missing epochs around the SDSS & DESI observations.
         if W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1] > 400:
+            print('400 day gap')
             continue
         elif W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400:
+            print('400 day gap')
             continue
         elif W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1] > 400:
+            print('400 day gap')
             continue
         elif W1_av_mjd_date[after_DESI_index_W2] - W1_av_mjd_date[before_DESI_index_W2] > 400:
+            print('400 day gap')
             continue
 
         #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
@@ -312,9 +319,10 @@ for object_name in object_names:
         SDSS_z = object_data.iloc[0, 3]
         DESI_z = object_data.iloc[0, 10]
         DESI_name = object_data.iloc[0, 11]
+        SDSS_mjd_for_dnl = object_data.iloc[0, 6] #exact same as SDSS_mjd above, but that mjd gets converted to days since first observation
 
         #Automatically querying the SDSS database
-        downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
+        downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd_for_dnl)
         downloaded_SDSS_spec = downloaded_SDSS_spec[0]
 
         hdul = HDUList(downloaded_SDSS_spec.get_fits())
@@ -442,8 +450,6 @@ for object_name in object_names:
         ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
         ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
         ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-        # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
-        # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
         ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
         ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
         ax1.set_xlabel('Days since first observation')
@@ -506,7 +512,8 @@ for object_name in object_names:
         #left and right adjust the horizontal space on the left and right sides.
         #hspace and wspace adjust the spacing between rows and columns, respectively.
 
-        fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
+        # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
+        fig.savefig(f'./AGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 
     else:
         continue
@@ -538,4 +545,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
+df.to_csv("AGN_Quantifying_Change.csv", index=False)

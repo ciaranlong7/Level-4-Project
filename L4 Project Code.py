@@ -39,7 +39,6 @@ object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '090931.55-011233.3' #Highly variable AGN object 2 (no SDSS reading in parent sample)
 # object_name = '134554.00+084537.3' #Interested in missing normalised flux change reading. Nb - there is no SDSS/DESI spectrum file for this object in the list claire sent me
 # object_name = '020942.78-042830.3'
-# object_name = '020153.27-050840.2'
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -162,7 +161,8 @@ desi_lamb, desi_flux = get_primary_spectrum(target_id)
 
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
 
-sfd = sfdmap.SFDMap('SFD_dust_files') #it says SFD - but the values are the same as S&F - I have checked for multiple objects
+sfd = sfdmap.SFDMap('SFD_dust_files') #called SFD map, but see - https://github.com/kbarbary/sfdmap/blob/master/README.md
+# It explains how "By default, a scaling of 0.86 is applied to the map values to reflect the recalibration by Schlafly & Finkbeiner (2011)"
 ebv = sfd.ebv(coord)
 print(f"E(B-V): {ebv}")
 
@@ -932,6 +932,6 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # #left and right adjust the horizontal space on the left and right sides.
 # #hspace and wspace adjust the spacing between rows and columns, respectively.
 
-# fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
+# # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 
 # plt.show()
