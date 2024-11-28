@@ -15,11 +15,11 @@ from dust_extinction.parameter_averages import G23
 
 c = 299792458
 
-#When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
+# #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
-# # #random list of object names taken from parent catalogue
+# #random list of object names taken from parent catalogue
 # object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
 #                 '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
 #                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
@@ -243,7 +243,7 @@ for object_name in object_names:
     before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
     if q == 0 and w == 0 and e == 0 and r == 0: #confirming that SDSS & DESI observations lie within the MIR observations
-        #eliminating objects where there are 2 or more missing epochs around the SDSS & DESI observations.
+        # eliminating objects where there are 2 or more missing epochs around the SDSS & DESI observations.
         if W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1] > 400:
             print('400 day gap')
             continue
