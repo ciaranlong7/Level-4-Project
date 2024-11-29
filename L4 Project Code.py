@@ -29,17 +29,17 @@ c = 299792458
 
 #get SDSS & DESI filenames:
 # object_name = '152517.57+401357.6' #Object A - assigned to me
-object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
+# object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
-# object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
+object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '150210.72+522212.2' #Object G - chosen because not a CLAGN, but in AGN parent sample & has low z scores
 # object_name = '101536.17+221048.9' #Highly variable AGN object 1 (no SDSS reading in parent sample)
 # object_name = '090931.55-011233.3' #Highly variable AGN object 2 (no SDSS reading in parent sample)
-# object_name = '134554.00+084537.3' #Guo CLAGN. Interested in missing normalised flux change reading. Nb - there is no SDSS/DESI spectrum file for this object in the list claire sent me
-# object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores
+# object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores & normalised flux change
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
+# object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -176,7 +176,7 @@ sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide t
 desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
 # Correcting for redshift.
-sdss_lamb = (sdss_lamb/(1+SDSS_z))
+sdss_lamb = (sdss_lamb/(1+DESI_z))
 desi_lamb = (desi_lamb/(1+DESI_z))
 
 #Calculate rolling average manually
@@ -866,6 +866,9 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 fig = plt.figure(figsize=(12, 7)) # (width, height)
 gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
+# common_ymin = -10
+# common_ymax = 20
+
 # Top plot spanning two columns and three rows (ax1)
 ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
 ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
@@ -900,9 +903,10 @@ if SDSS_min <= Ly_alpha <= SDSS_max:
 if SDSS_min <= Ly_beta <= SDSS_max:
     ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
 ax2.set_xlabel('Wavelength / Å')
+# ax2.set_ylim(common_ymin, common_ymax)
 ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-ax2.legend(loc='upper right')
+ax2.legend(loc='best')
 
 # Bottom right plot spanning 2 rows and 1 column (ax3)
 ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
@@ -925,9 +929,10 @@ if DESI_min <= Ly_alpha <= DESI_max:
 if DESI_min <= Ly_beta <= DESI_max:
     ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
 ax3.set_xlabel('Wavelength / Å')
+# ax3.set_ylim(common_ymin, common_ymax)
 ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-ax3.legend(loc='upper right')
+ax3.legend(loc='best')
 
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
 #top and bottom adjust the vertical space on the top and bottom of the figure.

@@ -138,11 +138,11 @@ for object_name in object_names:
     W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
     W2_mag = [tup for tup in W2_mag if not np.isnan(tup[0])]
 
-    if len(W1_mag) < 50: #want 50 data points as a minimum
-        print('less than 50 MIR')
+    if len(W1_mag) < 100: #want 100 data points as a minimum
+        print('less than 100 W1')
         continue
-    elif len(W2_mag) < 50:
-        print('less than 50 MIR')
+    elif len(W2_mag) < 100:
+        print('less than 100 W2')
         continue
 
     #Below code sorts MIR data.
@@ -244,18 +244,18 @@ for object_name in object_names:
 
     if q == 0 and w == 0 and e == 0 and r == 0: #confirming that SDSS & DESI observations lie within the MIR observations
         # eliminating objects where there are 2 or more missing epochs around the SDSS & DESI observations.
-        if W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1] > 400:
-            print('400 day gap')
-            continue
-        elif W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400:
-            print('400 day gap')
-            continue
-        elif W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1] > 400:
-            print('400 day gap')
-            continue
-        elif W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2] > 400:
-            print('400 day gap')
-            continue
+        # if W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1] > 400:
+        #     print('400 day gap')
+        #     continue
+        # elif W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400:
+        #     print('400 day gap')
+        #     continue
+        # elif W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1] > 400:
+        #     print('400 day gap')
+        #     continue
+        # elif W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2] > 400:
+        #     print('400 day gap')
+        #     continue
 
         #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
         W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
