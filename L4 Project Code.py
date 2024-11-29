@@ -33,11 +33,11 @@ c = 299792458
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
-object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
+# object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '150210.72+522212.2' #Object G - chosen because not a CLAGN, but in AGN parent sample & has low z scores
 # object_name = '101536.17+221048.9' #Highly variable AGN object 1 (no SDSS reading in parent sample)
 # object_name = '090931.55-011233.3' #Highly variable AGN object 2 (no SDSS reading in parent sample)
-# object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores & normalised flux change
+object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores & normalised flux change
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 
@@ -67,6 +67,8 @@ parent_sample = pd.read_csv('guo23_parent_sample.csv')
 object_data = parent_sample[parent_sample.iloc[:, 4] == object_name]
 SDSS_RA = object_data.iloc[0, 1]
 SDSS_DEC = object_data.iloc[0, 2]
+DESI_RA = object_data.iloc[0, 8]
+DESI_DEC = object_data.iloc[0, 9]
 SDSS_plate_number = object_data.iloc[0, 5]
 SDSS_fiberid_number = object_data.iloc[0, 7]
 SDSS_mjd = object_data.iloc[0, 6]
@@ -92,7 +94,75 @@ sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset
 
 #DESI spectrum retrieval method
 # from - https://github.com/astro-datalab/notebooks-latest/blob/master/03_ScienceExamples/DESI/01_Intro_to_DESI_EDR.ipynb
-def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+#some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+# client = SparclClient()
+
+# constraints = {'spectype': ['GALAXY', 'QSO'], 'redshift': [DESI_z-0.25, DESI_z+0.25], 'data_release':['DESI-EDR']}
+
+# #want to know the ra, dec & sparcl_id of every Galaxy, QSO within 0.05 redshift either side of the DESI_z
+# fields = ['ra', 'dec', 'specid', 'targetid']
+
+# find_spectra = client.find(outfields=fields, constraints=constraints)
+
+# tolerance = 5
+
+# DESI_object = [record for record in find_spectra.records if abs(record['ra'] - DESI_RA) < tolerance and abs(record['dec'] - DESI_DEC) < tolerance]
+# print(DESI_object)
+# specid = DESI_object[0]['specid']
+# targetid = DESI_object[0]['targetid']
+# print(f'DESI specid = {specid}')
+# print(f'DESI targetid = {targetid}')
+# print(f'DESI RA = {DESI_object[0]["ra"]}')
+# print(f'DESI RA parent sample = {DESI_RA}')
+# print(f'DESI DEC = {DESI_object[0]["dec"]}')
+# print(f'DESI DEC parent sample = {DESI_DEC}')
+
+# res = client.retrieve_by_specid(specid_list=[int(abs(specid))], include=['specprimary', 'flux', 'wavelength'], dataset_list=['DESI-EDR'])
+# # res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
+
+# records = res.records
+
+# if not records: #no spectrum could be found:
+#     print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+#     try:
+#         DESI_file = f'spectrum_desi_{object_name}.csv'
+#         DESI_file_path = f'clagn_spectra/{DESI_file}'
+#         DESI_spec = pd.read_csv(DESI_file_path)
+#         desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+#         desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#         print('DESI file is in downloads - will proceed as normal')
+#     except FileNotFoundError as e:
+#         print('No DESI file already downloaded.')
+#         desi_lamb = []
+#         desi_flux = []
+
+# # Identify the primary spectrum
+# spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
+
+# if not np.any(spec_primary):
+#     print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+
+#     try:
+#         DESI_file = f'spectrum_desi_{object_name}.csv'
+#         DESI_file_path = f'clagn_spectra/{DESI_file}'
+#         DESI_spec = pd.read_csv(DESI_file_path)
+#         desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+#         desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#         print('DESI file is in downloads - will proceed as normal')
+#     except FileNotFoundError as e:
+#         print('No DESI file already downloaded.')
+#         desi_lamb = []
+#         desi_flux = []
+
+# # Get the index of the primary spectrum
+# primary_ii = np.where(spec_primary == True)[0][0]
+
+# # Extract wavelength and flux for the primary spectrum
+# desi_lamb = records[primary_ii].wavelength
+# desi_flux = records[primary_ii].flux
+
+
+def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
     """
     Retrieves the primary spectrum's wavelength and flux for a given target ID.
 
@@ -110,8 +180,8 @@ def get_primary_spectrum(targetid): #some objects have multiple spectra for it i
     inc = client.get_all_fields()
 
     # Retrieve the spectrum by target ID
-    res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
-    # res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
+    res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR'])
+    # res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
 
     # Extract records
     records = res.records
@@ -158,8 +228,8 @@ def get_primary_spectrum(targetid): #some objects have multiple spectra for it i
 
     return desi_lamb, desi_flux
 
-target_id = int(DESI_name)
-desi_lamb, desi_flux = get_primary_spectrum(target_id)
+desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
+
 
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
 
@@ -176,7 +246,7 @@ sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide t
 desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
 # Correcting for redshift.
-sdss_lamb = (sdss_lamb/(1+DESI_z))
+sdss_lamb = (sdss_lamb/(1+SDSS_z))
 desi_lamb = (desi_lamb/(1+DESI_z))
 
 #Calculate rolling average manually
