@@ -4,6 +4,7 @@ from matplotlib.gridspec import GridSpec
 import pandas as pd
 import scipy.optimize
 from astropy.io import fits
+from astropy.table import Table
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
 from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.coordinates import SkyCoord
@@ -14,9 +15,8 @@ from astropy.io.fits.hdu.hdulist import HDUList
 from astroquery.sdss import SDSS
 from sparcl.client import SparclClient
 from dl import queryClient as qc
-# import os
-# import fitsio
-# import desispec.io
+import os
+import desispec.io
 
 c = 299792458
 
@@ -33,11 +33,11 @@ c = 299792458
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
-# object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
+object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '150210.72+522212.2' #Object G - chosen because not a CLAGN, but in AGN parent sample & has low z scores
 # object_name = '101536.17+221048.9' #Highly variable AGN object 1 (no SDSS reading in parent sample)
 # object_name = '090931.55-011233.3' #Highly variable AGN object 2 (no SDSS reading in parent sample)
-object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores & normalised flux change
+# object_name = '151639.06+280520.4' #Object H - chosen because not a CLAGN, but in AGN parent sample & has high z scores & normalised flux change
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 
@@ -64,18 +64,24 @@ elif Min_SNR == 2:
 else:
     print('select a valid min SNR - 10, 3 or 2.')
 parent_sample = pd.read_csv('guo23_parent_sample.csv')
-object_data = parent_sample[parent_sample.iloc[:, 4] == object_name]
-SDSS_RA = object_data.iloc[0, 1]
-SDSS_DEC = object_data.iloc[0, 2]
-DESI_RA = object_data.iloc[0, 8]
-DESI_DEC = object_data.iloc[0, 9]
-SDSS_plate_number = object_data.iloc[0, 5]
-SDSS_fiberid_number = object_data.iloc[0, 7]
-SDSS_mjd = object_data.iloc[0, 6]
-DESI_mjd = object_data.iloc[0, 12]
-SDSS_z = object_data.iloc[0, 3]
-DESI_z = object_data.iloc[0, 10]
-DESI_name = object_data.iloc[0, 11]
+parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
+print(len(parent_sample))
+columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
+parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
+parent_sample.to_csv('guo23_parent_sample_no_duplicates.csv', index=False)
+print(len(parent_sample))
+object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
+SDSS_RA = object_data.iloc[0, 0]
+SDSS_DEC = object_data.iloc[0, 1]
+DESI_RA = object_data.iloc[0, 7]
+DESI_DEC = object_data.iloc[0, 8]
+SDSS_plate_number = object_data.iloc[0, 4]
+SDSS_fiberid_number = object_data.iloc[0, 6]
+SDSS_mjd = object_data.iloc[0, 5]
+DESI_mjd = object_data.iloc[0, 11]
+SDSS_z = object_data.iloc[0, 2]
+DESI_z = object_data.iloc[0, 9]
+DESI_name = object_data.iloc[0, 10]
 
 # print('MIR Search (RA ±DEC):')
 # print(f'{SDSS_RA} {SDSS_DEC:+}')
@@ -95,32 +101,34 @@ sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset
 #DESI spectrum retrieval method
 # from - https://github.com/astro-datalab/notebooks-latest/blob/master/03_ScienceExamples/DESI/01_Intro_to_DESI_EDR.ipynb
 #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-# client = SparclClient()
+client = SparclClient()
 
-# constraints = {'spectype': ['GALAXY', 'QSO'], 'redshift': [DESI_z-0.25, DESI_z+0.25], 'data_release':['DESI-EDR']}
+tolerance = 2.8
 
-# #want to know the ra, dec & sparcl_id of every Galaxy, QSO within 0.05 redshift either side of the DESI_z
-# fields = ['ra', 'dec', 'specid', 'targetid']
+# constraints = {'spectype': ['GALAXY', 'QSO'], 'redshift': [DESI_z-0.25, DESI_z+0.25], 'ra': [DESI_RA-tolerance, DESI_RA+tolerance], 
+            #    'dec': [DESI_DEC-tolerance, DESI_DEC+tolerance], 'data_release': ['DESI-EDR']}
 
-# find_spectra = client.find(outfields=fields, constraints=constraints)
+print(int(DESI_name))
+constraints = {'data_release': ['DESI-EDR'], 'targetid': [int(DESI_name)]}
 
-# tolerance = 5
+#want to know the ra, dec & sparcl_id of every Galaxy, QSO within 0.25 redshift either side of the DESI_z
+# print(client.get_all_fields())
+fields = ['ra', 'dec', 'specid', 'targetid', 'flux', 'wavelength']
 
-# DESI_object = [record for record in find_spectra.records if abs(record['ra'] - DESI_RA) < tolerance and abs(record['dec'] - DESI_DEC) < tolerance]
-# print(DESI_object)
-# specid = DESI_object[0]['specid']
-# targetid = DESI_object[0]['targetid']
-# print(f'DESI specid = {specid}')
-# print(f'DESI targetid = {targetid}')
-# print(f'DESI RA = {DESI_object[0]["ra"]}')
-# print(f'DESI RA parent sample = {DESI_RA}')
-# print(f'DESI DEC = {DESI_object[0]["dec"]}')
-# print(f'DESI DEC parent sample = {DESI_DEC}')
+find_spectra = client.find(outfields=fields, constraints=constraints, limit=2044588)
 
-# res = client.retrieve_by_specid(specid_list=[int(abs(specid))], include=['specprimary', 'flux', 'wavelength'], dataset_list=['DESI-EDR'])
-# # res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
-
-# records = res.records
+DESI_object = find_spectra.records
+DESI_objects = [record for record in find_spectra.records]
+print(len(DESI_objects))
+specid = DESI_object[0]['specid']
+targetid = DESI_object[0]['targetid']
+print(f'date obs = {DESI_object[0]["dateobs_center"]}')
+print(f'DESI specid = {specid}')
+print(f'DESI targetid = {targetid}')
+print(f'DESI RA = {DESI_object[0]["ra"]}')
+print(f'DESI RA parent sample = {DESI_RA}')
+print(f'DESI DEC = {DESI_object[0]["dec"]}')
+print(f'DESI DEC parent sample = {DESI_DEC}')
 
 # if not records: #no spectrum could be found:
 #     print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
@@ -163,31 +171,17 @@ sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset
 
 
 def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-    """
-    Retrieves the primary spectrum's wavelength and flux for a given target ID.
-
-    Parameters:
-    - targetid (int): The target ID of the object.
-
-    Returns:
-    - lam_primary (array): Wavelength data for the primary spectrum.
-    - flam_primary (array): Flux data for the primary spectrum.
-    """
-    # Initialize SparclClient
     client = SparclClient()
     
-    # Get all available fields
     inc = client.get_all_fields()
 
-    # Retrieve the spectrum by target ID
     res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR'])
     # res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
 
-    # Extract records
     records = res.records
 
     if not records: #no spectrum could be found:
-        print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+        print(f'Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
 
         try:
             DESI_file = f'spectrum_desi_{object_name}.csv'
@@ -205,7 +199,7 @@ def get_primary_spectrum(specid): #some objects have multiple spectra for it in 
     spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
 
     if not np.any(spec_primary):
-        print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+        print(f'Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
 
         try:
             DESI_file = f'spectrum_desi_{object_name}.csv'
@@ -220,15 +214,60 @@ def get_primary_spectrum(specid): #some objects have multiple spectra for it in 
             return [], []
 
     # Get the index of the primary spectrum
-    primary_ii = np.where(spec_primary == True)[0][0]
+    primary_idx = np.where(spec_primary == True)[0][0]
 
     # Extract wavelength and flux for the primary spectrum
-    desi_lamb = records[primary_ii].wavelength
-    desi_flux = records[primary_ii].flux
+    desi_lamb = records[primary_idx].wavelength
+    desi_flux = records[primary_idx].flux
 
     return desi_lamb, desi_flux
 
+DESI_name = int(39628439124186509)
 desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
+
+
+#Even newer DESI data retrieval method:
+# from - https://github.com/desihub/tutorials/blob/main/getting_started/EDR_AnalyzeZcat.ipynb
+# Release directory path
+specprod = "fuji"    # Internal name for the EDR
+specprod_dir = "/global/cfs/cdirs/desi/public/edr/spectro/redux/fuji/"
+fits_file_path = os.path.join(specprod_dir, "zcatalog", f"zall-pix-{specprod}.fits")
+
+with fits.open(fits_file_path) as hdul:
+    fujidata = Table(hdul[1].data)  # Read the data from the first extension
+
+# fujidata = Table(fitsio.read(os.path.join(specprod_dir, "zcatalog", "zall-pix-{}.fits".format(specprod))))
+#-- SV1/2/3
+is_sv1 = (fujidata["SURVEY"].astype(str).data == "sv1")
+is_sv2 = (fujidata["SURVEY"].astype(str).data == "sv2")
+is_sv3 = (fujidata["SURVEY"].astype(str).data == "sv3")
+#-- all SV data
+is_sv = (is_sv1 | is_sv2 | is_sv3)
+#-- commissioning data
+is_cmx = (fujidata["SURVEY"].astype(str).data == "cmx")
+#-- special tiles
+is_special = (fujidata["SURVEY"].astype(str).data == "special")
+
+def get_spec_data(tid, survey=None, program=None):
+    #-- the index of the specific target can be uniquely determined with the combination of TARGETID, SURVEY, and PROGRAM
+    idx = np.where( (fujidata["TARGETID"]==int(tid)) & (fujidata["SURVEY"]==survey) & (fujidata["PROGRAM"]==program) )[0][0]
+    #-- healpix values are integers but are converted here into a string for easier access to the file path
+    hpx = fujidata["HEALPIX"].astype(str)
+    if "sv" in survey:
+        specprod = "fuji"
+    specprod_dir = f"/global/cfs/cdirs/desi/spectro/redux/{specprod}"
+    target_dir   = f"{specprod_dir}/healpix/{survey}/{program}/{hpx[idx][:-2]}/{hpx[idx]}"
+    coadd_fname  = f"coadd-{survey}-{program}-{hpx[idx]}.fits"
+    #-- read in the spectra with desispec
+    coadd_obj  = desispec.io.read_spectra(f"{target_dir}/{coadd_fname}")
+    coadd_tgts = coadd_obj.target_ids().data
+    #-- select the spectrum of  targetid
+    row = ( coadd_tgts==fujidata["TARGETID"][idx] )
+    coadd_spec = coadd_obj[row]
+    return coadd_spec
+
+sv3_dark_gal = get_spec_data(DESI_name, survey="sv3", program="dark")
+
 
 
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
