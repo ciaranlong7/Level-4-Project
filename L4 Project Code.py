@@ -14,9 +14,9 @@ from dust_extinction.parameter_averages import G23
 from astropy.io.fits.hdu.hdulist import HDUList
 from astroquery.sdss import SDSS
 from sparcl.client import SparclClient
-from dl import queryClient as qc
 import os
-import desispec.io
+# os.environ = {key: str(value) for key, value in os.environ.items()}
+# import desispec.io
 
 c = 299792458
 
@@ -101,34 +101,34 @@ sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset
 #DESI spectrum retrieval method
 # from - https://github.com/astro-datalab/notebooks-latest/blob/master/03_ScienceExamples/DESI/01_Intro_to_DESI_EDR.ipynb
 #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-client = SparclClient()
+# client = SparclClient()
 
-tolerance = 2.8
+# tolerance = 2.8
 
 # constraints = {'spectype': ['GALAXY', 'QSO'], 'redshift': [DESI_z-0.25, DESI_z+0.25], 'ra': [DESI_RA-tolerance, DESI_RA+tolerance], 
             #    'dec': [DESI_DEC-tolerance, DESI_DEC+tolerance], 'data_release': ['DESI-EDR']}
 
-print(int(DESI_name))
-constraints = {'data_release': ['DESI-EDR'], 'targetid': [int(DESI_name)]}
+# print(int(DESI_name))
+# constraints = {'data_release': ['DESI-EDR'], 'targetid': [int(DESI_name)]}
 
-#want to know the ra, dec & sparcl_id of every Galaxy, QSO within 0.25 redshift either side of the DESI_z
-# print(client.get_all_fields())
-fields = ['ra', 'dec', 'specid', 'targetid', 'flux', 'wavelength']
+# #want to know the ra, dec & sparcl_id of every Galaxy, QSO within 0.25 redshift either side of the DESI_z
+# # print(client.get_all_fields())
+# fields = ['ra', 'dec', 'specid', 'targetid', 'flux', 'wavelength']
 
-find_spectra = client.find(outfields=fields, constraints=constraints, limit=2044588)
+# find_spectra = client.find(outfields=fields, constraints=constraints, limit=2044588)
 
-DESI_object = find_spectra.records
-DESI_objects = [record for record in find_spectra.records]
-print(len(DESI_objects))
-specid = DESI_object[0]['specid']
-targetid = DESI_object[0]['targetid']
-print(f'date obs = {DESI_object[0]["dateobs_center"]}')
-print(f'DESI specid = {specid}')
-print(f'DESI targetid = {targetid}')
-print(f'DESI RA = {DESI_object[0]["ra"]}')
-print(f'DESI RA parent sample = {DESI_RA}')
-print(f'DESI DEC = {DESI_object[0]["dec"]}')
-print(f'DESI DEC parent sample = {DESI_DEC}')
+# DESI_object = find_spectra.records
+# DESI_objects = [record for record in find_spectra.records]
+# print(len(DESI_objects))
+# specid = DESI_object[0]['specid']
+# targetid = DESI_object[0]['targetid']
+# print(f'date obs = {DESI_object[0]["dateobs_center"]}')
+# print(f'DESI specid = {specid}')
+# print(f'DESI targetid = {targetid}')
+# print(f'DESI RA = {DESI_object[0]["ra"]}')
+# print(f'DESI RA parent sample = {DESI_RA}')
+# print(f'DESI DEC = {DESI_object[0]["dec"]}')
+# print(f'DESI DEC parent sample = {DESI_DEC}')
 
 # if not records: #no spectrum could be found:
 #     print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
@@ -222,52 +222,52 @@ def get_primary_spectrum(specid): #some objects have multiple spectra for it in 
 
     return desi_lamb, desi_flux
 
-DESI_name = int(39628439124186509)
 desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
 
 
 #Even newer DESI data retrieval method:
 # from - https://github.com/desihub/tutorials/blob/main/getting_started/EDR_AnalyzeZcat.ipynb
 # Release directory path
-specprod = "fuji"    # Internal name for the EDR
-specprod_dir = "/global/cfs/cdirs/desi/public/edr/spectro/redux/fuji/"
-fits_file_path = os.path.join(specprod_dir, "zcatalog", f"zall-pix-{specprod}.fits")
+# specprod = "fuji"    # Internal name for the EDR
+# specprod_dir = "/global/cfs/cdirs/desi/public/edr/spectro/redux/fuji/"
+# fits_file_path = os.path.join(specprod_dir, "zcatalog", f"zall-pix-{specprod}.fits")
 
-with fits.open(fits_file_path) as hdul:
-    fujidata = Table(hdul[1].data)  # Read the data from the first extension
+# with fits.open(fits_file_path) as hdul:
+#     fujidata = Table(hdul[1].data)  # Read the data from the first extension
 
-# fujidata = Table(fitsio.read(os.path.join(specprod_dir, "zcatalog", "zall-pix-{}.fits".format(specprod))))
-#-- SV1/2/3
-is_sv1 = (fujidata["SURVEY"].astype(str).data == "sv1")
-is_sv2 = (fujidata["SURVEY"].astype(str).data == "sv2")
-is_sv3 = (fujidata["SURVEY"].astype(str).data == "sv3")
-#-- all SV data
-is_sv = (is_sv1 | is_sv2 | is_sv3)
-#-- commissioning data
-is_cmx = (fujidata["SURVEY"].astype(str).data == "cmx")
-#-- special tiles
-is_special = (fujidata["SURVEY"].astype(str).data == "special")
+# # fujidata = Table(fitsio.read(os.path.join(specprod_dir, "zcatalog", "zall-pix-{}.fits".format(specprod))))
+# #-- SV1/2/3
+# is_sv1 = (fujidata["SURVEY"].astype(str).data == "sv1")
+# is_sv2 = (fujidata["SURVEY"].astype(str).data == "sv2")
+# is_sv3 = (fujidata["SURVEY"].astype(str).data == "sv3")
+# #-- all SV data
+# is_sv = (is_sv1 | is_sv2 | is_sv3)
+# #-- commissioning data
+# is_cmx = (fujidata["SURVEY"].astype(str).data == "cmx")
+# #-- special tiles
+# is_special = (fujidata["SURVEY"].astype(str).data == "special")
 
-def get_spec_data(tid, survey=None, program=None):
-    #-- the index of the specific target can be uniquely determined with the combination of TARGETID, SURVEY, and PROGRAM
-    idx = np.where( (fujidata["TARGETID"]==int(tid)) & (fujidata["SURVEY"]==survey) & (fujidata["PROGRAM"]==program) )[0][0]
-    #-- healpix values are integers but are converted here into a string for easier access to the file path
-    hpx = fujidata["HEALPIX"].astype(str)
-    if "sv" in survey:
-        specprod = "fuji"
-    specprod_dir = f"/global/cfs/cdirs/desi/spectro/redux/{specprod}"
-    target_dir   = f"{specprod_dir}/healpix/{survey}/{program}/{hpx[idx][:-2]}/{hpx[idx]}"
-    coadd_fname  = f"coadd-{survey}-{program}-{hpx[idx]}.fits"
-    #-- read in the spectra with desispec
-    coadd_obj  = desispec.io.read_spectra(f"{target_dir}/{coadd_fname}")
-    coadd_tgts = coadd_obj.target_ids().data
-    #-- select the spectrum of  targetid
-    row = ( coadd_tgts==fujidata["TARGETID"][idx] )
-    coadd_spec = coadd_obj[row]
-    return coadd_spec
+# def get_spec_data(tid):
+#     #-- the index of the specific target can be uniquely determined with the combination of TARGETID, SURVEY, and PROGRAM
+#     idx = np.where( (fujidata["TARGETID"]==int(tid)) )[0][0]
+#     #-- healpix values are integers but are converted here into a string for easier access to the file path
+#     hpx = fujidata["HEALPIX"].astype(str)
+#     survey = fujidata["SURVEY"].astype(str)
+#     program = fujidata["PROGRAM"].astype(str)
+#     if "sv" in survey:
+#         specprod = "fuji"
+#     specprod_dir = f"/global/cfs/cdirs/desi/spectro/redux/{specprod}"
+#     target_dir   = f"{specprod_dir}/healpix/{survey}/{program}/{hpx[idx][:-2]}/{hpx[idx]}"
+#     coadd_fname  = f"coadd-{survey}-{program}-{hpx[idx]}.fits"
+#     #-- read in the spectra with desispec
+#     coadd_obj  = desispec.io.read_spectra(f"{target_dir}/{coadd_fname}")
+#     coadd_tgts = coadd_obj.target_ids().data
+#     #-- select the spectrum of  targetid
+#     row = ( coadd_tgts==fujidata["TARGETID"][idx] )
+#     coadd_spec = coadd_obj[row]
+#     return coadd_spec
 
-sv3_dark_gal = get_spec_data(DESI_name, survey="sv3", program="dark")
-
+# DESI_object = get_spec_data(DESI_name)
 
 
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
@@ -288,14 +288,14 @@ desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 sdss_lamb = (sdss_lamb/(1+SDSS_z))
 desi_lamb = (desi_lamb/(1+DESI_z))
 
-#Calculate rolling average manually
-def rolling_average(arr, window_size):
+# # Calculate rolling average manually
+# def rolling_average(arr, window_size):
     
-    averages = []
-    for i in range(len(arr) - window_size + 1):
-        avg = np.mean(arr[i:i + window_size])
-        averages.append(avg)
-    return np.array(averages)
+#     averages = []
+#     for i in range(len(arr) - window_size + 1):
+#         avg = np.mean(arr[i:i + window_size])
+#         averages.append(avg)
+#     return np.array(averages)
 
 #Manual Rolling averages - only uncomment if using (otherwise cuts off first 9 data points)
 # SDSS_rolling = rolling_average(sdss_flux, 10)
@@ -496,8 +496,8 @@ for i in range(len(W1_mag)):
         W1_list.append(W1_mag[i][0])
         W1_mjds.append(W1_mag[i][1])
         W1_unc_list.append(W1_mag[i][2])
-        W1_averages.append(np.average(W1_list))
-        W1_av_mjd_date.append(np.average(W1_mjds))
+        W1_averages.append(np.median(W1_list))
+        W1_av_mjd_date.append(np.median(W1_mjds))
         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
         if p == m:
             one_epoch_W1 = W1_list
@@ -512,8 +512,8 @@ for i in range(len(W1_mag)):
         W1_unc_list.append(W1_mag[i][2])
         continue
     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-        W1_averages.append(np.average(W1_list))
-        W1_av_mjd_date.append(np.average(W1_mjds))
+        W1_averages.append(np.median(W1_list))
+        W1_av_mjd_date.append(np.median(W1_mjds))
         W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
         if p == m:
             one_epoch_W1 = W1_list
@@ -550,8 +550,8 @@ for i in range(len(W2_mag)):
         W2_list.append(W2_mag[i][0])
         W2_mjds.append(W2_mag[i][1])
         W2_unc_list.append(W2_mag[i][2])
-        W2_averages.append(np.average(W2_list))
-        W2_av_mjd_date.append(np.average(W2_mjds))
+        W2_averages.append(np.median(W2_list))
+        W2_av_mjd_date.append(np.median(W2_mjds))
         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
         if p == m:
             one_epoch_W2 = W2_list
@@ -566,8 +566,8 @@ for i in range(len(W2_mag)):
         W2_unc_list.append(W2_mag[i][2])
         continue
     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-        W2_averages.append(np.average(W2_list))
-        W2_av_mjd_date.append(np.average(W2_mjds))
+        W2_averages.append(np.median(W2_list))
+        W2_av_mjd_date.append(np.median(W2_mjds))
         W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
         if p == m:
             one_epoch_W2 = W2_list
@@ -601,9 +601,9 @@ for i in range(len(W2_mag)):
 #         mjd_list_g.append(mjd_date_PTF_g[i])
 #         continue
 #     elif i == len(PTF_mag_g) - 1: #if final data point, close the epoch
-#         g_av_mag.append(np.average(g_list))
+#         g_av_mag.append(np.median(g_list))
 #         g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
-#         mjd_date_g_epoch.append(np.average(mjd_list_g))
+#         mjd_date_g_epoch.append(np.median(mjd_list_g))
 #         if p == m:
 #             one_epoch_g = g_list
 #             one_epoch_g_unc = g_unc_list
@@ -616,9 +616,9 @@ for i in range(len(W2_mag)):
 #         mjd_list_g.append(mjd_date_PTF_g[i])
 #         continue
 #     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-#         g_av_mag.append(np.average(g_list))
+#         g_av_mag.append(np.median(g_list))
 #         g_av_uncs.append((1/len(g_unc_list))*np.sqrt(np.sum(np.square(g_unc_list))))
-#         mjd_date_g_epoch.append(np.average(mjd_list_g))
+#         mjd_date_g_epoch.append(np.median(mjd_list_g))
 #         if p == m:
 #             one_epoch_g = g_list
 #             one_epoch_g_unc = g_unc_list
@@ -650,9 +650,9 @@ for i in range(len(W2_mag)):
 #         mjd_list_r.append(mjd_date_PTF_r[i])
 #         continue
 #     elif i == len(PTF_mag_r) - 1:
-#         r_av_mag.append(np.average(r_list))
+#         r_av_mag.append(np.median(r_list))
 #         r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
-#         mjd_date_r_epoch.append(np.average(mjd_list_r))
+#         mjd_date_r_epoch.append(np.median(mjd_list_r))
 #         if p == m:
 #             one_epoch_r = r_list
 #             one_epoch_r_unc = r_unc_list
@@ -664,9 +664,9 @@ for i in range(len(W2_mag)):
 #         mjd_list_r.append(mjd_date_PTF_r[i])
 #         continue
 #     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-#         r_av_mag.append(np.average(r_list))
+#         r_av_mag.append(np.median(r_list))
 #         r_av_uncs.append((1/len(r_unc_list))*np.sqrt(np.sum(np.square(r_unc_list))))
-#         mjd_date_r_epoch.append(np.average(mjd_list_r))
+#         mjd_date_r_epoch.append(np.median(mjd_list_r))
 #         if p == m:
 #             one_epoch_r = r_list
 #             one_epoch_r_unc = r_unc_list
@@ -762,11 +762,11 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 
     #uncertainty in normalised flux change
     W1_av_unc = np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-    W1_abs_norm = ((W1_abs)/(np.average(W1_averages_flux)))
-    W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.average(W1_averages_flux)))**2)
+    W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
+    W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
     W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-    W2_abs_norm = ((W2_abs)/(np.average(W2_averages_flux)))
-    W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.average(W2_averages_flux)))**2)
+    W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
+    W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
     #uncertainty in z score
     W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
