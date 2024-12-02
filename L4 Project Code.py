@@ -4,6 +4,7 @@ from matplotlib.gridspec import GridSpec
 import pandas as pd
 import math
 import scipy.optimize
+from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.table import Table
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
@@ -28,10 +29,10 @@ c = 299792458
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
 #get SDSS & DESI filenames:
-object_name = '152517.57+401357.6' #Object A - assigned to me
+# object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chosen, but it had a low redshift also
-# object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
+object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
 # object_name = '135544.25+531805.2' #Object F - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '150210.72+522212.2' #Object G - chosen because not a CLAGN, but in AGN parent sample & has low z scores
@@ -288,6 +289,10 @@ desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 sdss_lamb = (sdss_lamb/(1+SDSS_z))
 desi_lamb = (desi_lamb/(1+DESI_z))
 
+print(f'Object Name = {object_name}')
+print(f'SDSS Redshift = {SDSS_z}')
+print(f'DESI Redshift = {DESI_z}')
+
 # # Calculate rolling average manually
 # def rolling_average(arr, window_size):
     
@@ -337,6 +342,62 @@ if len(desi_lamb) > 0:
 else:
     DESI_min = 0
     DESI_max = 1
+
+# if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+
+#     closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+#     closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+#     sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+#     sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+#     sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
+
+#     desi_lamb = desi_lamb.tolist()
+#     closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+#     closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+#     desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+#     desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+#     desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
+
+#     #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+#     sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+#     sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
+
+#     flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+
+
+#     #Big plot of difference in flux between SDSS & DESI
+#     fig = plt.figure(figsize=(12, 7))
+#     gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+
+#     # Top plot spanning two columns and three rows (ax1)
+#     ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+#     ax1.plot(desi_blue_lamb, flux_change, color = 'red')
+#     ax1.set_xlabel('Wavelength / Å')
+#     ax1.set_ylabel('DESI Flux - SDSS Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+#     ax1.set_title(f'Change in Flux over {round(DESI_mjd -SDSS_mjd)} days ({object_name})')
+
+#     # Bottom left plot spanning 2 rows and 1 column (ax2)
+#     ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+#     ax2.plot(sdss_blue_lamb, sdss_blue_flux, alpha=0.2, color='forestgreen')
+#     ax2.plot(sdss_blue_lamb, sdss_blue_flux_smooth, color='forestgreen')
+#     ax2.set_xlabel('Wavelength / Å')
+#     ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+#     ax2.set_title('Gaussian Smoothed Plot of Blue SDSS Spectrum')
+
+#     # Bottom right plot spanning 2 rows and 1 column (ax3)
+#     ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+#     ax3.plot(desi_blue_lamb, desi_blue_flux, alpha=0.2, color='midnightblue')
+#     ax3.plot(desi_blue_lamb, desi_blue_flux_smooth, color='midnightblue')
+#     ax3.set_xlabel('Wavelength / Å')
+#     ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+#     ax3.set_title('Gaussian Smoothed Plot of Blue DESI Spectrum')
+
+#     fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#     #top and bottom adjust the vertical space on the top and bottom of the figure.
+#     #left and right adjust the horizontal space on the left and right sides.
+#     #hspace and wspace adjust the spacing between rows and columns, respectively.
+#     plt.show()
+
 
 # #Plot of SDSS Spectrum - Extinction Corrected vs Uncorrected
 # plt.figure(figsize=(12,7))
@@ -465,9 +526,6 @@ first_NEO_mjd_W2 = filtered_NEO_rows_W2.iloc[:, 42].tolist()[0]
 # PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
 # PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
 
-print(f'Object Name = {object_name}')
-print(f'SDSS Redshift = {SDSS_z}')
-print(f'DESI Redshift = {DESI_z}')
 print(f'W1 data points = {len(W1_mag)}')
 print(f'W2 data points = {len(W2_mag)}')
 # print(f'g data points = {len(PTF_mag_g)}')
