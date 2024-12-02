@@ -166,8 +166,8 @@ for object_name in object_names:
             W1_list.append(W1_mag[i][0])
             W1_mjds.append(W1_mag[i][1])
             W1_unc_list.append(W1_mag[i][2])
-            W1_averages.append(np.average(W1_list))
-            W1_av_mjd_date.append(np.average(W1_mjds))
+            W1_averages.append(np.median(W1_list))
+            W1_av_mjd_date.append(np.median(W1_mjds))
             W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
             continue
         elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
@@ -176,8 +176,8 @@ for object_name in object_names:
             W1_unc_list.append(W1_mag[i][2])
             continue
         else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-            W1_averages.append(np.average(W1_list))
-            W1_av_mjd_date.append(np.average(W1_mjds))
+            W1_averages.append(np.median(W1_list))
+            W1_av_mjd_date.append(np.median(W1_mjds))
             W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
             W1_list = []
             W1_mjds = []
@@ -204,8 +204,8 @@ for object_name in object_names:
             W2_list.append(W2_mag[i][0])
             W2_mjds.append(W2_mag[i][1])
             W2_unc_list.append(W2_mag[i][2])
-            W2_averages.append(np.average(W2_list))
-            W2_av_mjd_date.append(np.average(W2_mjds))
+            W2_averages.append(np.median(W2_list))
+            W2_av_mjd_date.append(np.median(W2_mjds))
             W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
             continue
         elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
@@ -214,8 +214,8 @@ for object_name in object_names:
             W2_unc_list.append(W2_mag[i][2])
             continue
         else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-            W2_averages.append(np.average(W2_list))
-            W2_av_mjd_date.append(np.average(W2_mjds))
+            W2_averages.append(np.median(W2_list))
+            W2_av_mjd_date.append(np.median(W2_mjds))
             W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
             W2_list = []
             W2_mjds = []
@@ -277,11 +277,11 @@ for object_name in object_names:
 
         #uncertainty in normalised flux change
         W1_av_unc = np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-        W1_abs_norm = ((W1_abs)/(np.average(W1_averages_flux)))
-        W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.average(W1_averages_flux)))**2)
+        W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
+        W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
         W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-        W2_abs_norm = ((W2_abs)/(np.average(W2_averages_flux)))
-        W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.average(W2_averages_flux)))**2)
+        W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
+        W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
         #uncertainty in z score
         W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
