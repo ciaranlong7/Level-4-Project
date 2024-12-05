@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import pandas as pd
+from scipy.interpolate import interp1d
+from astropy.io import fits
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
 from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.coordinates import SkyCoord
@@ -32,7 +34,7 @@ object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna
 # parent_sample = pd.read_csv('guo23_parent_sample.csv')
 # columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
 # parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
-# object_names = parent_sample.iloc[:, 4].sample(n=250, random_state=42) #randomly selecting 250 object names from parent sample
+# object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -72,10 +74,12 @@ W2_SDSS_aft_dps = []
 W2_DESI_bef_dps = []
 W2_DESI_aft_dps = []
 
-median_zscore = []
-median_zscore_unc = []
+mean_zscore = []
+mean_zscore_unc = []
 mean_norm_flux_change = []
 mean_norm_flux_change_unc = []
+mean_UV_flux_change = []
+mean_UV_flux_change_unc = []
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -101,17 +105,21 @@ def find_closest_indices(x_vals, value):
             after_index = i + 1
             return before_index, after_index, t
 
+parent_sample = pd.read_csv('guo23_parent_sample.csv')
+parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
+columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
+parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
+object_names = ['115103.77+530140.6']
 g = 0
 for object_name in object_names:
     print(g)
     print(object_name)
     g += 1
-    parent_sample = pd.read_csv('guo23_parent_sample.csv')
-    object_data = parent_sample[parent_sample.iloc[:, 4] == object_name]
-    SDSS_RA = object_data.iloc[0, 1]
-    SDSS_DEC = object_data.iloc[0, 2]
-    SDSS_mjd = object_data.iloc[0, 6]
-    DESI_mjd = object_data.iloc[0, 12]
+    object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
+    SDSS_RA = object_data.iloc[0, 0]
+    SDSS_DEC = object_data.iloc[0, 1]
+    SDSS_mjd = object_data.iloc[0, 5]
+    DESI_mjd = object_data.iloc[0, 11]
 
     # Automatically querying catalogues
     coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
@@ -154,13 +162,29 @@ for object_name in object_names:
     W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
     W2_mag = [tup for tup in W2_mag if not np.isnan(tup[0])]
 
-    final_ALLWISE_mjd = filtered_WISE_rows.iloc[:, 10].tolist()[-1]
-    first_NEO_mjd_W1 = filtered_NEO_rows_W1.iloc[:, 42].tolist()[0]
-    first_NEO_mjd_W2 = filtered_NEO_rows_W2.iloc[:, 42].tolist()[0]
+    if len(filtered_NEO_rows_W1.iloc[:, 42].tolist()) < 2: #checking if there is enough NEO data
+        continue
+    elif len(filtered_NEO_rows_W2.iloc[:, 42].tolist()) < 2:
+        continue
+
+    if len(filtered_WISE_rows.iloc[:, 10].tolist()) > 0: #checking if there is any ALLWISE data
+        final_ALLWISE_mjd = filtered_WISE_rows.iloc[:, 10].tolist()[-1]
+        first_NEO_mjd_W1 = filtered_NEO_rows_W1.iloc[:, 42].tolist()[0]
+        first_NEO_mjd_W2 = filtered_NEO_rows_W2.iloc[:, 42].tolist()[0]
+
+        if final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W1:
+            print('SDSS observation was during ALLWISE - NEOWISE gap W1 (and possibly W2).')
+            continue
+        elif final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W2:
+            print('SDSS observation was during ALLWISE - NEOWISE gap, just W2.')
+            continue
+    else:
+        pass #already have code to filter out objects with SDSS before 1st WISE. this code is just to fileter out if sdss in all-neo gap.
 
     #Below code sorts MIR data.
-    #One assumption required for code to work:
-    #1. The data is in order of oldest mjd to most recent.
+    #Two assumptions required for code to work:
+    #1. The data is sorted in order of oldest mjd to most recent.
+    #2. There are 2 or more data points.
 
     # W1 data first
     W1_list = []
@@ -248,15 +272,7 @@ for object_name in object_names:
     min_mjd = min([W1_av_mjd_date[0], W2_av_mjd_date[0]])
     SDSS_mjd = SDSS_mjd - min_mjd
     DESI_mjd = DESI_mjd - min_mjd
-    final_ALLWISE_mjd = final_ALLWISE_mjd - min_mjd
-    first_NEO_mjd_W1 = first_NEO_mjd_W1 - min_mjd
-    first_NEO_mjd_W2 = first_NEO_mjd_W2 - min_mjd
-    if final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W1:
-        print('SDSS observation was during ALLWISE - NEOWISE gap W1 (and possibly W2).')
-        continue
-    elif final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W2:
-        print('SDSS observation was during ALLWISE - NEOWISE gap, just W2.')
-        continue
+
     W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
     W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
@@ -270,68 +286,315 @@ for object_name in object_names:
     before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
     before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
-    if q == 0 and w == 0 and e == 0 and r == 0: #confirming that SDSS & DESI observations lie within the MIR observations
-        min_dps = 2
-        if W1_epoch_dps[before_SDSS_index_W1] < min_dps: #Filtering for min dps in all adjactent epochs
-            print(f'Only {W1_epoch_dps[before_SDSS_index_W1]} dps before W1 SDSS')
+    min_dps = 1
+
+    #Filtering for min dps in all adjactent epochs
+    if W1_epoch_dps[before_SDSS_index_W1] < min_dps:
+        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
+            print('Not enough data in W1 & W2')
             continue
-        elif W1_epoch_dps[after_SDSS_index_W1] < min_dps:
-            print(f'Only {W1_epoch_dps[after_SDSS_index_W1]} dps after W1 SDSS')
+    elif W1_epoch_dps[after_SDSS_index_W1] < min_dps:
+        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
+            print('Not enough data in W1 & W2')
             continue
-        elif W1_epoch_dps[before_DESI_index_W1] < min_dps:
-            print(f'Only {W1_epoch_dps[before_DESI_index_W1]} dps before W1 DESI')
+    elif W1_epoch_dps[before_DESI_index_W1] < min_dps:
+        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
+            print('Not enough data in W1 & W2')
             continue
-        elif W1_epoch_dps[after_DESI_index_W1] < min_dps:
-            print(f'Only {W1_epoch_dps[after_DESI_index_W1]} dps after W1 DESI')
+    elif W1_epoch_dps[after_DESI_index_W1] < min_dps:
+        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
+            print('Not enough data in W1 & W2')
             continue
-        elif W2_epoch_dps[before_SDSS_index_W2] < min_dps:
-            print(f'Only {W2_epoch_dps[before_SDSS_index_W2]} dps before W2 SDSS')
-            continue
-        elif W2_epoch_dps[after_SDSS_index_W2] < min_dps:
-            print(f'Only {W2_epoch_dps[after_SDSS_index_W2]} dps after W2 SDSS')
-            continue
-        elif W2_epoch_dps[before_DESI_index_W2] < min_dps:
-            print(f'Only {W2_epoch_dps[before_DESI_index_W2]} dps before W2 DESI')
-            continue
-        elif W2_epoch_dps[after_DESI_index_W2] < min_dps:
-            print(f'Only {W2_epoch_dps[after_DESI_index_W2]} dps after W2 DESI')
-            continue
+
+    SDSS_plate_number = object_data.iloc[0, 4]
+    SDSS_plate = f'{SDSS_plate_number:04}'
+    SDSS_mjd_for_dnl = object_data.iloc[0, 5] #exact same as SDSS_mjd above, but that mjd gets converted to days since first observation
+    SDSS_fiberid_number = object_data.iloc[0, 6]
+    SDSS_fiberid = f"{SDSS_fiberid_number:04}"
+    SDSS_z = object_data.iloc[0, 2]
+    DESI_z = object_data.iloc[0, 9]
+    DESI_name = object_data.iloc[0, 10]
+
+    #Automatically querying the SDSS database
+    downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
+    print(downloaded_SDSS_spec)
+    if downloaded_SDSS_spec == None:
+        downloaded_SDSS_spec = SDSS.get_spectra_async(coordinates=coord, radius=2. * u.arcsec)
+        if downloaded_SDSS_spec == None:
+            print(f'SDSS Spectrum cannot be found for object_name = {object_name}')
+            try:
+                SDSS_file = f'spec-{SDSS_plate}-{SDSS_mjd:.0f}-{SDSS_fiberid}.fits'
+                SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+                with fits.open(SDSS_file_path) as hdul:
+                    subset = hdul[1]
+
+                    sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+                    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+                    sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
+                    print('SDSS file is in downloads - will proceed as normal')
+            except FileNotFoundError as e:
+                print('No SDSS file already downloaded.')
+                sdss_flux = []
+                sdss_lamb = []
+        else:
+            downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+            hdul = HDUList(downloaded_SDSS_spec.get_fits())
+            subset = hdul[1]
+
+            sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+            sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+            sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
+    else:
+        downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+        hdul = HDUList(downloaded_SDSS_spec.get_fits())
+        subset = hdul[1]
+
+        sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+        sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+        sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
+
+    #DESI spectrum retrieval method
+    def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+        """
+        Retrieves the primary spectrum's wavelength and flux for a given target ID.
+
+        Parameters:
+        - targetid (int): The target ID of the object.
+
+        Returns:
+        - lam_primary (array): Wavelength data for the primary spectrum.
+        - flam_primary (array): Flux data for the primary spectrum.
+        """
+        # Initialize SparclClient
+        client = SparclClient()
+        
+        # Get all available fields
+        inc = client.get_all_fields()
+
+        # Retrieve the spectrum by target ID
+        res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
+
+        # Extract records
+        records = res.records
+
+        if not records: #no spectrum could be found:
+            print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+
+            try:
+                DESI_file = f'spectrum_desi_{object_name}.csv'
+                DESI_file_path = f'clagn_spectra/{DESI_file}'
+                DESI_spec = pd.read_csv(DESI_file_path)
+                desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+                desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+                print('DESI file is in downloads - will proceed as normal')
+                return desi_lamb, desi_flux
+            except FileNotFoundError as e:
+                print('No DESI file already downloaded.')
+                return [], []
+
+        # Identify the primary spectrum
+        spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
+
+        if not np.any(spec_primary):
+            print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+
+            try:
+                DESI_file = f'spectrum_desi_{object_name}.csv'
+                DESI_file_path = f'clagn_spectra/{DESI_file}'
+                DESI_spec = pd.read_csv(DESI_file_path)
+                desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+                desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+                print('DESI file is in downloads - will proceed as normal')
+                return desi_lamb, desi_flux
+            except FileNotFoundError as e:
+                print('No DESI file already downloaded.')
+                return [], []
+
+        # Get the index of the primary spectrum
+        primary_ii = np.where(spec_primary == True)[0][0]
+
+        # Extract wavelength and flux for the primary spectrum
+        desi_lamb = records[primary_ii].wavelength
+        desi_flux = records[primary_ii].flux
+
+        return desi_lamb, desi_flux
+
+    target_id = int(DESI_name)
+    desi_lamb, desi_flux = get_primary_spectrum(target_id)
+
+    sfd = sfdmap.SFDMap('SFD_dust_files') #called SFD map, but see - https://github.com/kbarbary/sfdmap/blob/master/README.md
+    # It explains how "By default, a scaling of 0.86 is applied to the map values to reflect the recalibration by Schlafly & Finkbeiner (2011)"
+    ebv = sfd.ebv(coord)
+
+    ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
+    inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
+    inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
+    sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
+    desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
+
+    sdss_lamb = (sdss_lamb/(1+SDSS_z))
+    desi_lamb = (desi_lamb/(1+DESI_z))
+
+    gaussian_kernel = Gaussian1DKernel(stddev=3)
+
+    if len(sdss_flux) > 0:
+        Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
+    else:
+        Gaus_smoothed_SDSS = []
+    if len(desi_flux) > 0:
+        Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
+    else:
+        Gaus_smoothed_DESI = []
+
+    if len(sdss_lamb) > 0:
+        SDSS_min = min(sdss_lamb)
+        SDSS_max = max(sdss_lamb)
+    else:
+        SDSS_min = 0
+        SDSS_max = 1
+    if len(desi_lamb) > 0:
+        DESI_min = min(desi_lamb)
+        DESI_max = max(desi_lamb)
+    else:
+        DESI_min = 0
+        DESI_max = 1
+
+    #If the code makes it this far, that means that there is enough data in at least W1 or W2.
+    if q == 0 and e == 0:
+        if W1_epoch_dps[before_SDSS_index_W1] < min_dps or W1_epoch_dps[after_SDSS_index_W1] < min_dps or W1_epoch_dps[before_DESI_index_W1] < min_dps or W1_epoch_dps[after_DESI_index_W1] < min_dps:
+            if w == 0 and r == 0:
+                if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
+                    #bad W1, bad W2
+                    print('Not enough W1 or W2 data in adjacent epochs to quantify variability')
+                    continue
+                #bad W1, good W2
+                object_names_list.append(object_name)
+
+                W1_SDSS_DESI.append(np.nan)
+                W1_SDSS_DESI_unc.append(np.nan)
+                W1_DESI_SDSS.append(np.nan)
+                W1_DESI_SDSS_unc.append(np.nan)
+                W1_abs_change.append(np.nan)
+                W1_abs_change_unc.append(np.nan)
+                W1_abs_change_norm.append(np.nan)
+                W1_abs_change_norm_unc.append(np.nan)
+
+                W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
+                W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
+                W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
+                W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
+
+                W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+                W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+
+                W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+                W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+
+                W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
+                W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
+
+                W1_abs_norm = np.nan
+                W1_abs_norm_unc = np.nan
+
+                W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
+                W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
+                W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+
+                W1_z_score_SDSS_DESI = np.nan
+                W1_z_score_SDSS_DESI_unc = np.nan
+                W1_z_score_DESI_SDSS = np.nan
+                W1_z_score_DESI_SDSS_unc = np.nan
+
+                W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
+                W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+                W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
+                W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
+
+                W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
+                W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
+                W2_DESI_SDSS.append(W2_z_score_DESI_SDSS)
+                W2_DESI_SDSS_unc.append(W2_z_score_DESI_SDSS_unc)
+                W2_abs_change.append(W2_abs)
+                W2_abs_change_unc.append(W2_abs_unc)
+                W2_abs_change_norm.append(W2_abs_norm)
+                W2_abs_change_norm_unc.append(W2_abs_norm_unc)
+
+                W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
+                W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
+                W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
+                W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
+
+                zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+                zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
+                if np.isnan(zscores[0]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                    mean_zscore_unc.append(np.nan)
+                elif np.isnan(zscores[1]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                    mean_zscore_unc.append(abs(zscore_uncs[0]))
+                elif np.isnan(zscores[2]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                    mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                elif np.isnan(zscores[3]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores)))
+                    mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
+                else:
+                    mean_zscore.append(np.nanmean(abs(zscores)))
+                    mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
+
+                mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
+                mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+
+                if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+                    closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                    closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                    sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+                    sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+                    sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
+
+                    desi_lamb = desi_lamb.tolist()
+                    closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                    closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                    desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+                    desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+                    desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
+
+                    #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+                    sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+                    sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
+
+                    UV_flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+
+                    mean_UV_flux_change.append(np.mean(UV_flux_change))
+                    mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                else:
+                    mean_UV_flux_change.append(np.nan)
+                    mean_UV_flux_change_unc.append(np.nan)
+
+        #good W1
 
         #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
         W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-        W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
         W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-        W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
         #uncertainties in interpolated flux
         W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-        W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
         W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
-        W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
 
         #uncertainty in absolute flux change
         W1_abs = abs(W1_SDSS_interp-W1_DESI_interp)
-        W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
         W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
-        W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
         #uncertainty in normalised flux change
         W1_av_unc = np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
         W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
         W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
-        W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-        W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
-        W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
         #uncertainty in z score
         W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
         W1_z_score_SDSS_DESI_unc = W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs))
         W1_z_score_DESI_SDSS = (W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)
         W1_z_score_DESI_SDSS_unc = W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs))
-        W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
-        W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
-        W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
-        W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
 
         object_names_list.append(object_name)
 
@@ -346,155 +609,284 @@ for object_name in object_names:
         W1_abs_change_norm.append(W1_abs_norm)
         W1_abs_change_norm_unc.append(W1_abs_norm_unc)
 
-        W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
-        W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
-        W2_DESI_SDSS.append(W2_z_score_DESI_SDSS)
-        W2_DESI_SDSS_unc.append(W2_z_score_DESI_SDSS_unc)
-        W2_abs_change.append(W2_abs)
-        W2_abs_change_unc.append(W2_abs_unc)
-        W2_abs_change_norm.append(W2_abs_norm)
-        W2_abs_change_norm_unc.append(W2_abs_norm_unc)
-
         W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
         W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
         W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
         W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
 
-        W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
-        W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
-        W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
-        W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
+        if w == 0 and r == 0:
+            if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
+                #good W1, bad W2
+                W2_abs_norm = np.nan
+                W2_abs_norm_unc = np.nan
 
-        zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
-        zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
-        if np.isnan(zscores[0]) == True:
-            median_zscore.append(np.nanmedian(zscores)) #will be nan - all values are nan
-            median_zscore_unc.append(np.nan)
-        elif np.isnan(zscores[1]) == True:
-            median_zscore.append(np.nanmedian(zscores)) #will be zscores[0] - only non nan value
-            median_zscore_unc.append(zscore_uncs[0])
-        elif np.isnan(zscores[2]) == True:
-            median_zscore.append(np.nanmedian(zscores)) #will be 1/2(zscores[0]+zscores[1])
-            median_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
-        elif np.isnan(zscores[3]) == True:
-            median_zscore.append(np.nanmedian(zscores)) #will be zscores[2]
-            median_zscore_unc.append(zscore_uncs[2])
-        else:
-            median_zscore.append(np.nanmedian(zscores))
-            median_zscore_unc.append(np.sqrt(zscore_uncs[1]**2+zscore_uncs[2]**2))
+                W2_z_score_SDSS_DESI = np.nan
+                W2_z_score_SDSS_DESI_unc = np.nan
+                W2_z_score_DESI_SDSS = np.nan
+                W2_z_score_DESI_SDSS_unc = np.nan
 
-        mean_norm_flux_change.append(np.average([W1_abs_norm, W2_abs_norm]))
-        mean_norm_flux_change_unc.append(np.sqrt(W1_abs_change_norm_unc**2 + W2_abs_change_norm_unc**2))
+                W2_SDSS_DESI.append(np.nan)
+                W2_SDSS_DESI_unc.append(np.nan)
+                W2_DESI_SDSS.append(np.nan)
+                W2_DESI_SDSS_unc.append(np.nan)
+                W2_abs_change.append(np.nan)
+                W2_abs_change_unc.append(np.nan)
+                W2_abs_change_norm.append(np.nan)
+                W2_abs_change_norm_unc.append(np.nan)
 
-        # # Comment out if not interested in figures.
-        # SDSS_plate_number = object_data.iloc[0, 5]
-        # SDSS_fiberid_number = object_data.iloc[0, 7]
-        # SDSS_z = object_data.iloc[0, 3]
-        # DESI_z = object_data.iloc[0, 10]
-        # DESI_name = object_data.iloc[0, 11]
-        # SDSS_mjd_for_dnl = object_data.iloc[0, 6] #exact same as SDSS_mjd above, but that mjd gets converted to days since first observation
+                W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
+                W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
+                W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
+                W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
 
-        # #Automatically querying the SDSS database
-        # downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd_for_dnl)
-        # downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+                zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+                zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
+                if np.isnan(zscores[0]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                    mean_zscore_unc.append(np.nan)
+                elif np.isnan(zscores[1]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                    mean_zscore_unc.append(abs(zscore_uncs[0]))
+                elif np.isnan(zscores[2]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                    mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                elif np.isnan(zscores[3]) == True:
+                    mean_zscore.append(np.nanmean(abs(zscores)))
+                    mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
+                else:
+                    mean_zscore.append(np.nanmean(abs(zscores)))
+                    mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-        # hdul = HDUList(downloaded_SDSS_spec.get_fits())
-        # subset = hdul[1]
+                mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
+                mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
 
-        # #SDSS Spectrum information
-        # sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-        # sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+                if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+                    closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                    closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                    sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+                    sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+                    sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
 
-        # #DESI spectrum retrieval method
-        # def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-        #     """
-        #     Retrieves the primary spectrum's wavelength and flux for a given target ID.
+                    desi_lamb = desi_lamb.tolist()
+                    closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                    closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                    desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+                    desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+                    desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
 
-        #     Parameters:
-        #     - targetid (int): The target ID of the object.
+                    #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+                    sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+                    sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
 
-        #     Returns:
-        #     - lam_primary (array): Wavelength data for the primary spectrum.
-        #     - flam_primary (array): Flux data for the primary spectrum.
-        #     """
-        #     # Initialize SparclClient
-        #     client = SparclClient()
+                    UV_flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+
+                    mean_UV_flux_change.append(np.mean(UV_flux_change))
+                    mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                else:
+                    mean_UV_flux_change.append(np.nan)
+                    mean_UV_flux_change_unc.append(np.nan)
+
+                continue
             
-        #     # Get all available fields
-        #     inc = client.get_all_fields()
+            #good W1 & W2
+            W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+            W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
 
-        #     # Retrieve the spectrum by target ID
-        #     res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
+            W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+            W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
 
-        #     # Extract records
-        #     records = res.records
+            W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
+            W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
-        #     if not records: #no spectrum could be found:
-        #         print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+            W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
+            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
-        #         try:
-        #             DESI_file = f'spectrum_desi_{object_name}.csv'
-        #             DESI_file_path = f'clagn_spectra/{DESI_file}'
-        #             DESI_spec = pd.read_csv(DESI_file_path)
-        #             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-        #             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
-        #             print('DESI file is in downloads - will proceed as normal')
-        #             return desi_lamb, desi_flux
-        #         except FileNotFoundError as e:
-        #             print('No DESI file already downloaded.')
-        #             return [], []
+            W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
+            W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+            W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
+            W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
 
-        #     # Identify the primary spectrum
-        #     spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
+            W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
+            W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
+            W2_DESI_SDSS.append(W2_z_score_DESI_SDSS)
+            W2_DESI_SDSS_unc.append(W2_z_score_DESI_SDSS_unc)
+            W2_abs_change.append(W2_abs)
+            W2_abs_change_unc.append(W2_abs_unc)
+            W2_abs_change_norm.append(W2_abs_norm)
+            W2_abs_change_norm_unc.append(W2_abs_norm_unc)
 
-        #     if not np.any(spec_primary):
-        #         print(f'Spectrum cannot be found for object_name = {object_name}, DESI target_id = {DESI_name}')
+            W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
+            W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
+            W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
+            W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
 
-        #         try:
-        #             DESI_file = f'spectrum_desi_{object_name}.csv'
-        #             DESI_file_path = f'clagn_spectra/{DESI_file}'
-        #             DESI_spec = pd.read_csv(DESI_file_path)
-        #             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-        #             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
-        #             print('DESI file is in downloads - will proceed as normal')
-        #             return desi_lamb, desi_flux
-        #         except FileNotFoundError as e:
-        #             print('No DESI file already downloaded.')
-        #             return [], []
+            zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+            zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
+            if np.isnan(zscores[0]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore_unc.append(np.nan)
+            elif np.isnan(zscores[1]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore_unc.append(abs(zscore_uncs[0]))
+            elif np.isnan(zscores[2]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+            elif np.isnan(zscores[3]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
+            else:
+                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-        #     # Get the index of the primary spectrum
-        #     primary_ii = np.where(spec_primary == True)[0][0]
+            mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
+            mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
 
-        #     # Extract wavelength and flux for the primary spectrum
-        #     desi_lamb = records[primary_ii].wavelength
-        #     desi_flux = records[primary_ii].flux
+            if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+                closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+                sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+                sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
 
-        #     return desi_lamb, desi_flux
+                desi_lamb = desi_lamb.tolist()
+                closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+                desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+                desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
 
-        # target_id = int(DESI_name)
-        # desi_lamb, desi_flux = get_primary_spectrum(target_id)
+                #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+                sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+                sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
 
-        # sfd = sfdmap.SFDMap('SFD_dust_files') #it says SFD - but the values are the same as S&F - I have checked for multiple objects
-        # ebv = sfd.ebv(coord)
+                UV_flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
 
-        # ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
-        # inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
-        # inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
-        # sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
-        # desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
-
-        # sdss_lamb = (sdss_lamb/(1+SDSS_z))
-        # desi_lamb = (desi_lamb/(1+DESI_z))
-
-        # gaussian_kernel = Gaussian1DKernel(stddev=3)
-
-        # # Smooth the flux data using the Gaussian kernel
-        # Gaus_smoothed_SDSS = convolve(sdss_flux, gaussian_kernel)
-        # if len(desi_flux) > 0:
-        #     Gaus_smoothed_DESI = convolve(desi_flux, gaussian_kernel)
-        # else:
-        #     Gaus_smoothed_DESI = []
+                mean_UV_flux_change.append(np.mean(UV_flux_change))
+                mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+            else:
+                print('test6')
+                mean_UV_flux_change.append(np.nan)
+                mean_UV_flux_change_unc.append(np.nan)
         
+    else: #bad W1
+        if w == 0 and r == 0:
+            if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
+                #bad W1, bad W2
+                print('Not enough W1 or W2 data in adjacent epochs to quantify variability')
+                continue
+
+            #bad W1, good W2
+            object_names_list.append(object_name)
+
+            W1_SDSS_DESI.append(np.nan)
+            W1_SDSS_DESI_unc.append(np.nan)
+            W1_DESI_SDSS.append(np.nan)
+            W1_DESI_SDSS_unc.append(np.nan)
+            W1_abs_change.append(np.nan)
+            W1_abs_change_unc.append(np.nan)
+            W1_abs_change_norm.append(np.nan)
+            W1_abs_change_norm_unc.append(np.nan)
+
+            W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
+            W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
+            W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
+            W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
+
+            W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+            W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+
+            W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+            W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+
+            W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
+            W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
+
+            W1_abs_norm = np.nan
+            W1_abs_norm_unc = np.nan
+
+            W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
+            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+
+            W1_z_score_SDSS_DESI = np.nan
+            W1_z_score_SDSS_DESI_unc = np.nan
+            W1_z_score_DESI_SDSS = np.nan
+            W1_z_score_DESI_SDSS_unc = np.nan
+
+            W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
+            W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+            W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
+            W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
+
+            W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
+            W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
+            W2_DESI_SDSS.append(W2_z_score_DESI_SDSS)
+            W2_DESI_SDSS_unc.append(W2_z_score_DESI_SDSS_unc)
+            W2_abs_change.append(W2_abs)
+            W2_abs_change_unc.append(W2_abs_unc)
+            W2_abs_change_norm.append(W2_abs_norm)
+            W2_abs_change_norm_unc.append(W2_abs_norm_unc)
+
+            W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
+            W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
+            W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
+            W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
+
+            zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+            zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
+            if np.isnan(zscores[0]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore_unc.append(np.nan)
+            elif np.isnan(zscores[1]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore_unc.append(abs(zscore_uncs[0]))
+            elif np.isnan(zscores[2]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+            elif np.isnan(zscores[3]) == True:
+                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
+            else:
+                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
+
+            mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
+            mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+
+            if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+
+                closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+                sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+                sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
+
+                desi_lamb = desi_lamb.tolist()
+                closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+                closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+                desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+                desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+                desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
+
+                #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+                sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+                sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
+
+                UV_flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+
+                mean_UV_flux_change.append(np.mean(UV_flux_change))
+                mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+            else:
+                mean_UV_flux_change.append(np.nan)
+                mean_UV_flux_change_unc.append(np.nan)
+
+        else:
+            print('Bad W1 & W2 data')
+            continue
+    
+
+        #commented out as don't need plots anymore
         # #BELs
         # H_alpha = 6562.819
         # H_beta = 4861.333
@@ -588,10 +980,6 @@ for object_name in object_names:
         # # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
         # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 
-    else:
-        print('SDSS or DESI lie outside MIR observations in W1 or W2')
-        continue
-
 #for loop now ended
 quantifying_change_data = {
     "Object": object_names_list, #0
@@ -623,10 +1011,13 @@ quantifying_change_data = {
     "W2 before DESI Epoch Dps": W2_DESI_bef_dps, #23
     "W2 after DESI Epoch Dps": W2_DESI_aft_dps, #24
 
-    "Median Z Score": median_zscore, #25
-    "Median Z Score Unc": median_zscore_unc, #26. # Note that this is not the median uncertainty. It is the uncertainty in the median z score reading. 
+    "Mean Z Score": mean_zscore, #25
+    "Mean Z Score Unc": mean_zscore_unc, #26. # Note that this is not the median uncertainty. It is the uncertainty in the median z score reading. 
     "Mean Normalised Flux Change": mean_norm_flux_change, #27
     "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #28
+
+    "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #29
+    "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #30
 }
 
 # Convert the data into a DataFrame
