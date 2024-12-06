@@ -43,6 +43,7 @@ c = 299792458
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
 # object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
 object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
+# object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -1215,19 +1216,20 @@ plt.show()
 
 # #Quantifying change data
 # CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change.csv')
-# CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 25].tolist()  # 26th column, skipping the first row (header)
-# CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 26].tolist()
-# CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 27].tolist()  # 27th column, skipping the first row (header)
-# CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 28].tolist()
+# CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 29].tolist()  # 30th column, skipping the first row (header)
+# CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 30].tolist()
+# CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 31].tolist()
+# CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 32].tolist()
+# CLAGN_mean_optical_flux_change = CLAGN_quantifying_change_data.iloc[1:, 31].tolist()
 
 # AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change.csv')
-# AGN_zscores = AGN_quantifying_change_data.iloc[1:, 25].tolist()
-# AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 26].tolist()
-# AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 27].tolist()
-# AGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 28].tolist()
+# AGN_zscores = AGN_quantifying_change_data.iloc[1:, 29].tolist()
+# AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 30].tolist()
+# AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 31].tolist()
+# AGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 32].tolist()
 
-# median_norm_flux_change = np.median(AGN_norm_flux_change)
-# median_norm_flux_change_unc = np.median(AGN_norm_flux_change_unc)
+# median_norm_flux_change = np.nanmedian(AGN_norm_flux_change)
+# median_norm_flux_change_unc = np.nanmedian(AGN_norm_flux_change_unc)
 # three_sigma_norm_flux_change = median_norm_flux_change + 3*median_norm_flux_change_unc
 # #The median value of normalised flux change + 3x the median uncertainty
 # print(f'3\u03C3 significance for norm flux change = {three_sigma_norm_flux_change}')

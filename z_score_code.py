@@ -100,12 +100,14 @@ max_day_gap = 600 #max day gap to linearly interpolate over
 min_dps = 1 #minimum dps per epoch
 
 def find_closest_indices(x_vals, value):
-    t = 0  
+    t = 0
     if value <= x_vals[0]: #mjd is before first observation
         t += 1
+        print(f'{x_vals[0] - value} days before 1st observation (probably SDSS)')
         return 0, 0, t
     elif value >= x_vals[-1]: #mjd is after last observation
         t += 1
+        print(f'{value - x_vals[-1]} days after last observation (probably DESI)')
         return 0, 0, t
     for i in range(len(x_vals) - 1):
         if x_vals[i] <= value <= x_vals[i + 1]:
@@ -201,6 +203,9 @@ for object_name in object_names:
     SDSS_mjd = object_data.iloc[0, 5]
     DESI_mjd = object_data.iloc[0, 11]
 
+    if SDSS_mjd < 55179: #55179 is 14/12/2009 - the date of the 1st ever WISE observation
+        print(f'SDSS observation was {55179 - SDSS_mjd} days before 1st ever WISE observation.')
+
     # Automatically querying catalogues
     coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
     WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
@@ -242,26 +247,9 @@ for object_name in object_names:
     W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
     W2_mag = [tup for tup in W2_mag if not np.isnan(tup[0])]
 
-    if len(filtered_NEO_rows_W1.iloc[:, 42].tolist()) < 2: #checking if there is enough NEO data
-        print('No W1 data')
+    if len(W1_mag) < 2 and len(W2_mag) < 2: #checking if there is enough data
+        print('No W1 & W2 data')
         continue
-    elif len(filtered_NEO_rows_W2.iloc[:, 42].tolist()) < 2:
-        print('No W2 data')
-        continue
-
-    if len(filtered_WISE_rows.iloc[:, 10].tolist()) > 0: #checking if there is any ALLWISE data
-        final_ALLWISE_mjd = filtered_WISE_rows.iloc[:, 10].tolist()[-1]
-        first_NEO_mjd_W1 = filtered_NEO_rows_W1.iloc[:, 42].tolist()[0]
-        first_NEO_mjd_W2 = filtered_NEO_rows_W2.iloc[:, 42].tolist()[0]
-
-        if final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W1:
-            print(f'SDSS observation was {SDSS_mjd-final_ALLWISE_mjd} from ALLWISE, {first_NEO_mjd_W1-SDSS_mjd} from NEOWISE W1.')
-            continue
-        elif final_ALLWISE_mjd < SDSS_mjd < first_NEO_mjd_W2:
-            print(f'SDSS observation was {SDSS_mjd-final_ALLWISE_mjd} from ALLWISE, {first_NEO_mjd_W2-SDSS_mjd} from NEOWISE W2.')
-            continue
-    else:
-        pass #already have code to filter out objects with SDSS before 1st WISE. this code is just to fileter out if sdss in all-neo gap.
 
     #Below code sorts MIR data.
     #Two assumptions required for code to work:
@@ -269,104 +257,160 @@ for object_name in object_names:
     #2. There are 2 or more data points.
 
     # W1 data first
-    W1_list = []
-    W1_unc_list = []
-    W1_mjds = []
-    W1_averages= []
-    W1_av_uncs = []
-    W1_av_mjd_date = []
-    W1_epoch_dps = []  
-    for i in range(len(W1_mag)):
-        if i == 0: #first reading - store and move on
-            W1_list.append(W1_mag[i][0])
-            W1_mjds.append(W1_mag[i][1])
-            W1_unc_list.append(W1_mag[i][2])
-            continue
-        elif i == len(W1_mag) - 1: #if final data point, close the epoch
-            W1_list.append(W1_mag[i][0])
-            W1_mjds.append(W1_mag[i][1])
-            W1_unc_list.append(W1_mag[i][2])
-            W1_averages.append(np.median(W1_list))
-            W1_av_mjd_date.append(np.median(W1_mjds))
-            W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-            W1_epoch_dps.append(len(W1_list))
-            continue
-        elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
-            W1_list.append(W1_mag[i][0])
-            W1_mjds.append(W1_mag[i][1])
-            W1_unc_list.append(W1_mag[i][2])
-            continue
-        else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-            W1_averages.append(np.median(W1_list))
-            W1_av_mjd_date.append(np.median(W1_mjds))
-            W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
-            W1_epoch_dps.append(len(W1_list))
-            W1_list = []
-            W1_mjds = []
-            W1_unc_list = []
-            W1_list.append(W1_mag[i][0])
-            W1_mjds.append(W1_mag[i][1])
-            W1_unc_list.append(W1_mag[i][2])
-            continue
+    if len(W1_mag) > 1:
+        W1_list = []
+        W1_unc_list = []
+        W1_mjds = []
+        W1_averages= []
+        W1_av_uncs = []
+        W1_av_mjd_date = []
+        W1_epoch_dps = []  
+        for i in range(len(W1_mag)):
+            if i == 0: #first reading - store and move on
+                W1_list.append(W1_mag[i][0])
+                W1_mjds.append(W1_mag[i][1])
+                W1_unc_list.append(W1_mag[i][2])
+                continue
+            elif i == len(W1_mag) - 1: #if final data point, close the epoch
+                W1_list.append(W1_mag[i][0])
+                W1_mjds.append(W1_mag[i][1])
+                W1_unc_list.append(W1_mag[i][2])
+                W1_averages.append(np.median(W1_list))
+                W1_av_mjd_date.append(np.median(W1_mjds))
+                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                W1_epoch_dps.append(len(W1_list))
+                continue
+            elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
+                W1_list.append(W1_mag[i][0])
+                W1_mjds.append(W1_mag[i][1])
+                W1_unc_list.append(W1_mag[i][2])
+                continue
+            else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+                W1_averages.append(np.median(W1_list))
+                W1_av_mjd_date.append(np.median(W1_mjds))
+                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                W1_epoch_dps.append(len(W1_list))
+                W1_list = []
+                W1_mjds = []
+                W1_unc_list = []
+                W1_list.append(W1_mag[i][0])
+                W1_mjds.append(W1_mag[i][1])
+                W1_unc_list.append(W1_mag[i][2])
+                continue
+    else:
+        W1_averages = []
+        W1_av_mjd_date = []
+        W1_av_uncs = []
+        W1_epoch_dps = []
 
-    # W2 data second
-    W2_list = []
-    W2_unc_list = []
-    W2_mjds = []
-    W2_averages= []
-    W2_av_uncs = []
-    W2_av_mjd_date = []
-    W2_epoch_dps = []  
-    for i in range(len(W2_mag)):
-        if i == 0: #first reading - store and move on
-            W2_list.append(W2_mag[i][0])
-            W2_mjds.append(W2_mag[i][1])
-            W2_unc_list.append(W2_mag[i][2])
-            continue
-        elif i == len(W2_mag) - 1: #if final data point, close the epoch
-            W2_list.append(W2_mag[i][0])
-            W2_mjds.append(W2_mag[i][1])
-            W2_unc_list.append(W2_mag[i][2])
-            W2_averages.append(np.median(W2_list))
-            W2_av_mjd_date.append(np.median(W2_mjds))
-            W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-            W2_epoch_dps.append(len(W2_list))
-            continue
-        elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
-            W2_list.append(W2_mag[i][0])
-            W2_mjds.append(W2_mag[i][1])
-            W2_unc_list.append(W2_mag[i][2])
-            continue
-        else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-            W2_averages.append(np.median(W2_list))
-            W2_av_mjd_date.append(np.median(W2_mjds))
-            W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
-            W2_epoch_dps.append(len(W2_list))
-            W2_list = []
-            W2_mjds = []
-            W2_unc_list = []
-            W2_list.append(W2_mag[i][0])
-            W2_mjds.append(W2_mag[i][1])
-            W2_unc_list.append(W2_mag[i][2])
-            continue
+    if len(W2_mag) > 1:
+        # W2 data second
+        W2_list = []
+        W2_unc_list = []
+        W2_mjds = []
+        W2_averages= []
+        W2_av_uncs = []
+        W2_av_mjd_date = []
+        W2_epoch_dps = []  
+        for i in range(len(W2_mag)):
+            if i == 0: #first reading - store and move on
+                W2_list.append(W2_mag[i][0])
+                W2_mjds.append(W2_mag[i][1])
+                W2_unc_list.append(W2_mag[i][2])
+                continue
+            elif i == len(W2_mag) - 1: #if final data point, close the epoch
+                W2_list.append(W2_mag[i][0])
+                W2_mjds.append(W2_mag[i][1])
+                W2_unc_list.append(W2_mag[i][2])
+                W2_averages.append(np.median(W2_list))
+                W2_av_mjd_date.append(np.median(W2_mjds))
+                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                W2_epoch_dps.append(len(W2_list))
+                continue
+            elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
+                W2_list.append(W2_mag[i][0])
+                W2_mjds.append(W2_mag[i][1])
+                W2_unc_list.append(W2_mag[i][2])
+                continue
+            else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
+                W2_averages.append(np.median(W2_list))
+                W2_av_mjd_date.append(np.median(W2_mjds))
+                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                W2_epoch_dps.append(len(W2_list))
+                W2_list = []
+                W2_mjds = []
+                W2_unc_list = []
+                W2_list.append(W2_mag[i][0])
+                W2_mjds.append(W2_mag[i][1])
+                W2_unc_list.append(W2_mag[i][2])
+                continue
+    else:
+        W2_averages = []
+        W2_av_mjd_date = []
+        W2_av_uncs = []
+        W2_epoch_dps = []
+    
+    if len(W1_mag) > 1 and len(W2_mag) > 1:
+        #Changing mjd date to days since start:
+        min_mjd = min([W1_av_mjd_date[0], W2_av_mjd_date[0]])
+        SDSS_mjd = SDSS_mjd - min_mjd
+        DESI_mjd = DESI_mjd - min_mjd
 
-    #Changing mjd date to days since start:
-    min_mjd = min([W1_av_mjd_date[0], W2_av_mjd_date[0]])
-    SDSS_mjd = SDSS_mjd - min_mjd
-    DESI_mjd = DESI_mjd - min_mjd
+        W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
+        W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
-    W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
-    W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
+        W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
+        W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
+        W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
+        W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
-    W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
-    W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
-    W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
-    W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
+        before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+        before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+        before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
+        m = 0
+        n = 0
+    elif len(W1_mag) > 1 and len(W2_mag) <= 1:
+        #Changing mjd date to days since start:
+        min_mjd = W1_av_mjd_date[0]
+        SDSS_mjd = SDSS_mjd - min_mjd
+        DESI_mjd = DESI_mjd - min_mjd
 
-    before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
-    before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
-    before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
-    before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
+        W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
+
+        W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
+        W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
+
+        before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+        w = 1 #raising a flag that there is no W2 data, but there is W1 data
+        r = 1
+        m = 0
+        n = 1 #raising a flag that before_SDSS_index_W2, etc. don't exist
+    elif len(W1_mag) <= 1 and len(W2_mag) > 1:
+        #Changing mjd date to days since start:
+        min_mjd = W2_av_mjd_date[0]
+        SDSS_mjd = SDSS_mjd - min_mjd
+        DESI_mjd = DESI_mjd - min_mjd
+
+        W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
+
+        W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
+        W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
+
+        before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
+        q = 1 #raising a flag that there is no W1 data, but there is W2 data
+        e = 1
+        m = 1 #raising a flag that before_SDSS_index_W1, etc. don't exist
+        n = 0
+    else:
+        continue #shouldn't get to this path - already have filtered out objects with < 2 dps in W1 & W2 above
+
+    if q != 0 or e != 0:
+        if w != 0 or e != 0: #bad W1 & W2 - exit
+            print('Bad W1 & W2 data')
+            continue
 
     #Filtering for min dps in all adjactent epochs
     if W1_epoch_dps[before_SDSS_index_W1] < min_dps:
@@ -744,13 +788,22 @@ for object_name in object_names:
             W2_abs_change_norm.append(np.nan)
             W2_abs_change_norm_unc.append(np.nan)
 
-            W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
-            W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
-            W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
-            W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
+            if n == 0:
+                W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
+                W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
+                W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
+                W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
 
-            W2_SDSS_gap.append(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2])
-            W2_DESI_gap.append(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2])
+                W2_SDSS_gap.append(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2])
+                W2_DESI_gap.append(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2])
+            else:
+                W2_SDSS_bef_dps.append(np.nan)
+                W2_SDSS_aft_dps.append(np.nan)
+                W2_DESI_bef_dps.append(np.nan)
+                W2_DESI_aft_dps.append(np.nan)
+
+                W2_SDSS_gap.append(np.nan)
+                W2_DESI_gap.append(np.nan)
 
             zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
@@ -830,13 +883,22 @@ for object_name in object_names:
             W1_abs_change_norm.append(np.nan)
             W1_abs_change_norm_unc.append(np.nan)
 
-            W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
-            W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
-            W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
-            W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
+            if m == 0:
+                W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
+                W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
+                W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
+                W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
 
-            W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
-            W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
+                W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
+                W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
+            else:
+                W1_SDSS_bef_dps.append(np.nan)
+                W1_SDSS_aft_dps.append(np.nan)
+                W1_DESI_bef_dps.append(np.nan)
+                W1_DESI_aft_dps.append(np.nan)
+
+                W1_SDSS_gap.append(np.nan)
+                W1_DESI_gap.append(np.nan)
 
             W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
             W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
@@ -930,7 +992,7 @@ for object_name in object_names:
                 mean_UV_flux_change_unc.append(np.nan)
   
         else:
-            #bad W1, bad W2
+            #bad W1, bad W2. Should've already 'continued' above to save time.
             print('Bad W1 & W2 data')
             continue
 
@@ -965,18 +1027,19 @@ quantifying_change_data = {
     "W2 before DESI Epoch DPs": W2_DESI_bef_dps, #23
     "W2 after DESI Epoch DPs": W2_DESI_aft_dps, #24
 
-    "Mean Z Score": mean_zscore, #25
-    "Mean Z Score Unc": mean_zscore_unc, #26. # Note that this is not the median uncertainty. It is the uncertainty in the median z score reading. 
-    "Mean Normalised Flux Change": mean_norm_flux_change, #27
-    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #28
+    "W1 SDSS Gap": W1_SDSS_gap, #25
+    "W1 DESI Gap": W1_DESI_gap, #26
+    "W2 SDSS Gap": W2_SDSS_gap, #27
+    "W2 DESI Gap": W2_DESI_gap, #28
 
-    "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #29
-    "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #30
+    "Mean Z Score": mean_zscore, #29
+    "Mean Z Score Unc": mean_zscore_unc, #30. # Note that this is not the median uncertainty. It is the uncertainty in the median z score reading. 
+    "Mean Normalised Flux Change": mean_norm_flux_change, #31
+    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #32
 
-    "W1 SDSS Gap": W1_SDSS_gap, #31
-    "W1 DESI Gap": W1_DESI_gap, #32
-    "W2 SDSS Gap": W2_SDSS_gap, #33
-    "W2 DESI Gap": W2_DESI_gap, #34
+    "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #33
+    "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #34
+
 }
 
 # Convert the data into a DataFrame
