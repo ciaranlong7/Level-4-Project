@@ -18,8 +18,8 @@ from dust_extinction.parameter_averages import G23
 c = 299792458
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 # #random list of object names taken from parent catalogue
 # object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
@@ -31,10 +31,10 @@ object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna
 #                 '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
 #                 '122256.17+555533.3']
 
-# parent_sample = pd.read_csv('guo23_parent_sample.csv')
-# columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
-# parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
-# object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
+parent_sample = pd.read_csv('guo23_parent_sample.csv')
+columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
+parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
+object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -80,6 +80,7 @@ mean_norm_flux_change = []
 mean_norm_flux_change_unc = []
 mean_UV_flux_change = []
 mean_UV_flux_change_unc = []
+mean_uv_flux_change_minus_three_sig = []
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -90,6 +91,8 @@ elif Min_SNR == 2:
     MIR_SNR = 'C'
 else:
     print('select a valid min SNR - 10, 3 or 2.')
+
+max_day_gap = 400
 
 def find_closest_indices(x_vals, value):
     t = 0  
@@ -103,13 +106,14 @@ def find_closest_indices(x_vals, value):
         if x_vals[i] <= value <= x_vals[i + 1]:
             before_index = i
             after_index = i + 1
+            if x_vals[after_index] - x_vals[before_index] > max_day_gap:
+                t += 1
             return before_index, after_index, t
 
 parent_sample = pd.read_csv('guo23_parent_sample.csv')
 parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
 columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
 parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
-object_names = ['115103.77+530140.6']
 g = 0
 for object_name in object_names:
     print(g)
@@ -317,7 +321,6 @@ for object_name in object_names:
 
     #Automatically querying the SDSS database
     downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
-    print(downloaded_SDSS_spec)
     if downloaded_SDSS_spec == None:
         downloaded_SDSS_spec = SDSS.get_spectra_async(coordinates=coord, radius=2. * u.arcsec)
         if downloaded_SDSS_spec == None:
@@ -459,15 +462,9 @@ for object_name in object_names:
         DESI_min = 0
         DESI_max = 1
 
-    #If the code makes it this far, that means that there is enough data in at least W1 or W2.
-    if q == 0 and e == 0:
-        if W1_epoch_dps[before_SDSS_index_W1] < min_dps or W1_epoch_dps[after_SDSS_index_W1] < min_dps or W1_epoch_dps[before_DESI_index_W1] < min_dps or W1_epoch_dps[after_DESI_index_W1] < min_dps:
-            if w == 0 and r == 0:
-                if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
-                    #bad W1, bad W2
-                    print('Not enough W1 or W2 data in adjacent epochs to quantify variability')
-                    continue
-                #bad W1, good W2
+    if q == 0 and e == 0: #Good W1 if true
+        if w == 0 and r == 0: #Good W2 if true
+            #Good W1 & W2
                 object_names_list.append(object_name)
 
                 W1_SDSS_DESI.append(np.nan)
@@ -534,7 +531,7 @@ for object_name in object_names:
                     mean_zscore_unc.append(abs(zscore_uncs[0]))
                 elif np.isnan(zscores[2]) == True:
                     mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
-                    mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                    mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
                 elif np.isnan(zscores[3]) == True:
                     mean_zscore.append(np.nanmean(abs(zscores)))
                     mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
@@ -542,8 +539,17 @@ for object_name in object_names:
                     mean_zscore.append(np.nanmean(abs(zscores)))
                     mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-                mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
-                mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+                norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
+                norm_f_ch_unc = np.sort([W1_abs_norm_unc, W2_abs_norm_unc])
+                if np.isnan(norm_f_ch[0]) == True:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be nan
+                    mean_norm_flux_change_unc.append(np.nan)
+                elif np.isnan(norm_f_ch[1]) == True:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be norm_f_ch[0]
+                    mean_norm_flux_change_unc.append(abs(norm_f_ch_unc[0]))
+                else:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch))
+                    mean_norm_flux_change_unc.append((1/2)*np.sqrt(sum(unc**2 for unc in norm_f_ch_unc)))
 
                 if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
                     closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
@@ -567,12 +573,16 @@ for object_name in object_names:
 
                     mean_UV_flux_change.append(np.mean(UV_flux_change))
                     mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                    mean_uv_flux_change_minus_three_sig.append((abs(np.mean(UV_flux_change)) - 3*np.std(UV_flux_change))/abs(np.mean(UV_flux_change)))
                 else:
                     mean_UV_flux_change.append(np.nan)
                     mean_UV_flux_change_unc.append(np.nan)
-
+                    mean_uv_flux_change_minus_three_sig.append(np.nan)
+            else:
+                #bad W1, bad W2
+                print('Bad W1 & W2 data')
+                continue
         #good W1
-
         #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
         W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
         W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
@@ -615,7 +625,7 @@ for object_name in object_names:
         W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
 
         if w == 0 and r == 0:
-            if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
+            if W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400 or W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2] > 400:
                 #good W1, bad W2
                 W2_abs_norm = np.nan
                 W2_abs_norm_unc = np.nan
@@ -649,7 +659,7 @@ for object_name in object_names:
                     mean_zscore_unc.append(abs(zscore_uncs[0]))
                 elif np.isnan(zscores[2]) == True:
                     mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
-                    mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                    mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
                 elif np.isnan(zscores[3]) == True:
                     mean_zscore.append(np.nanmean(abs(zscores)))
                     mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
@@ -657,8 +667,17 @@ for object_name in object_names:
                     mean_zscore.append(np.nanmean(abs(zscores)))
                     mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-                mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
-                mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+                norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
+                norm_f_ch_unc = np.sort([W1_abs_norm_unc, W2_abs_norm_unc])
+                if np.isnan(norm_f_ch[0]) == True:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be nan
+                    mean_norm_flux_change_unc.append(np.nan)
+                elif np.isnan(norm_f_ch[1]) == True:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be norm_f_ch[0]
+                    mean_norm_flux_change_unc.append(abs(norm_f_ch_unc[0]))
+                else:
+                    mean_norm_flux_change.append(np.nanmean(norm_f_ch))
+                    mean_norm_flux_change_unc.append((1/2)*np.sqrt(sum(unc**2 for unc in norm_f_ch_unc)))
 
                 if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
                     closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
@@ -682,9 +701,11 @@ for object_name in object_names:
 
                     mean_UV_flux_change.append(np.mean(UV_flux_change))
                     mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                    mean_uv_flux_change_minus_three_sig.append((abs(np.mean(UV_flux_change)) - 3*np.std(UV_flux_change))/abs(np.mean(UV_flux_change)))
                 else:
                     mean_UV_flux_change.append(np.nan)
                     mean_UV_flux_change_unc.append(np.nan)
+                    mean_uv_flux_change_minus_three_sig.append(np.nan)
 
                 continue
             
@@ -731,7 +752,7 @@ for object_name in object_names:
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
                 mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
-                mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
                 mean_zscore.append(np.nanmean(abs(zscores)))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
@@ -739,8 +760,17 @@ for object_name in object_names:
                 mean_zscore.append(np.nanmean(abs(zscores)))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-            mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
-            mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+            norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
+            norm_f_ch_unc = np.sort([W1_abs_norm_unc, W2_abs_norm_unc])
+            if np.isnan(norm_f_ch[0]) == True:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be nan
+                mean_norm_flux_change_unc.append(np.nan)
+            elif np.isnan(norm_f_ch[1]) == True:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be norm_f_ch[0]
+                mean_norm_flux_change_unc.append(abs(norm_f_ch_unc[0]))
+            else:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch))
+                mean_norm_flux_change_unc.append((1/2)*np.sqrt(sum(unc**2 for unc in norm_f_ch_unc)))
 
             if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
                 closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
@@ -764,16 +794,17 @@ for object_name in object_names:
 
                 mean_UV_flux_change.append(np.mean(UV_flux_change))
                 mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                mean_uv_flux_change_minus_three_sig.append((abs(np.mean(UV_flux_change)) - 3*np.std(UV_flux_change))/abs(np.mean(UV_flux_change)))
             else:
-                print('test6')
                 mean_UV_flux_change.append(np.nan)
                 mean_UV_flux_change_unc.append(np.nan)
+                mean_uv_flux_change_minus_three_sig.append(np.nan)
         
     else: #bad W1
         if w == 0 and r == 0:
-            if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps:
+            if W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2] > 400 or W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2] > 400:
                 #bad W1, bad W2
-                print('Not enough W1 or W2 data in adjacent epochs to quantify variability')
+                print('Bad W1 & W2 data')
                 continue
 
             #bad W1, good W2
@@ -843,7 +874,7 @@ for object_name in object_names:
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
                 mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
-                mean_zscore_unc.append(np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
+                mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
                 mean_zscore.append(np.nanmean(abs(zscores)))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
@@ -851,8 +882,17 @@ for object_name in object_names:
                 mean_zscore.append(np.nanmean(abs(zscores)))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
-            mean_norm_flux_change.append(np.nanmean([W1_abs_norm, W2_abs_norm]))
-            mean_norm_flux_change_unc.append(np.sqrt(W1_abs_norm_unc**2 + W2_abs_norm_unc**2))
+            norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
+            norm_f_ch_unc = np.sort([W1_abs_norm_unc, W2_abs_norm_unc])
+            if np.isnan(norm_f_ch[0]) == True:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be nan
+                mean_norm_flux_change_unc.append(np.nan)
+            elif np.isnan(norm_f_ch[1]) == True:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch)) #will be norm_f_ch[0]
+                mean_norm_flux_change_unc.append(abs(norm_f_ch_unc[0]))
+            else:
+                mean_norm_flux_change.append(np.nanmean(norm_f_ch))
+                mean_norm_flux_change_unc.append((1/2)*np.sqrt(sum(unc**2 for unc in norm_f_ch_unc)))
 
             if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
 
@@ -877,9 +917,11 @@ for object_name in object_names:
 
                 mean_UV_flux_change.append(np.mean(UV_flux_change))
                 mean_UV_flux_change_unc.append(np.std(UV_flux_change))
+                mean_uv_flux_change_minus_three_sig.append((abs(np.mean(UV_flux_change)) - 3*np.std(UV_flux_change))/abs(np.mean(UV_flux_change)))
             else:
                 mean_UV_flux_change.append(np.nan)
                 mean_UV_flux_change_unc.append(np.nan)
+                mean_uv_flux_change_minus_three_sig.append(np.nan)
 
         else:
             print('Bad W1 & W2 data')
@@ -1018,6 +1060,7 @@ quantifying_change_data = {
 
     "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #29
     "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #30
+    "Normalised Mean UV Flux Change - 3Sig": mean_uv_flux_change_minus_three_sig, #31
 }
 
 # Convert the data into a DataFrame
