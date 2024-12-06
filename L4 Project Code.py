@@ -42,7 +42,7 @@ c = 299792458
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
 # object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
-object_name = '162106.25+371950.7'
+object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -66,6 +66,11 @@ elif Min_SNR == 2:
     MIR_SNR = 'C'
 else:
     print('select a valid min SNR - 10, 3 or 2.')
+
+max_day_gap = 220 #max day gap to linearly interpolate over
+min_dps = 1 #minimum dps per epoch
+
+
 parent_sample = pd.read_csv('guo23_parent_sample.csv')
 parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
 print(f'Objects in parent sample, before duplicates removed = {len(parent_sample)}')
@@ -872,6 +877,8 @@ def find_closest_indices(x_vals, value):
         if x_vals[i] <= value <= x_vals[i + 1]:
             before_index = i
             after_index = i + 1
+            if x_vals[after_index] - x_vals[before_index] > max_day_gap:
+                t += 1
             return before_index, after_index, t
 
 before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
@@ -880,7 +887,6 @@ before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_da
 before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
 if q == 0 and w == 0 and e == 0 and r == 0:
-    min_dps = 2
     if W1_epoch_dps[before_SDSS_index_W1] < min_dps: #Filtering for min dps in all adjactent epochs
         print(f'Only {W1_epoch_dps[before_SDSS_index_W1]} dps before W1 SDSS')
     elif W1_epoch_dps[after_SDSS_index_W1] < min_dps:
@@ -917,10 +923,10 @@ if q == 0 and w == 0 and e == 0 and r == 0:
     W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
     #uncertainty in normalised flux change
-    W1_av_unc = np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
+    W1_av_unc = (1/len(W1_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
     W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
     W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
-    W2_av_unc = np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
+    W2_av_unc = (1/len(W2_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
     W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
     W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
