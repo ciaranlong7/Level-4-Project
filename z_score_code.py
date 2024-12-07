@@ -1033,7 +1033,7 @@ quantifying_change_data = {
     "W2 DESI Gap": W2_DESI_gap, #28
 
     "Mean Z Score": mean_zscore, #29
-    "Mean Z Score Unc": mean_zscore_unc, #30. # Note that this is not the median uncertainty. It is the uncertainty in the median z score reading. 
+    "Mean Z Score Unc": mean_zscore_unc, #30
     "Mean Normalised Flux Change": mean_norm_flux_change, #31
     "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #32
 

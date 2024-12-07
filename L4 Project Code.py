@@ -42,8 +42,9 @@ c = 299792458
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
 # object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
-object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
+# object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
 # object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
+object_name = '095035.55+321601.0'
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -1138,8 +1139,8 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 fig = plt.figure(figsize=(12, 7)) # (width, height)
 gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# common_ymin = -10
-# common_ymax = 20
+common_ymin = 0
+common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist()+Gaus_smoothed_DESI.tolist())
 
 # Top plot spanning two columns and three rows (ax1)
 ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
@@ -1175,7 +1176,7 @@ if SDSS_min <= Ly_alpha <= SDSS_max:
 if SDSS_min <= Ly_beta <= SDSS_max:
     ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
 ax2.set_xlabel('Wavelength / Å')
-# ax2.set_ylim(common_ymin, common_ymax)
+ax2.set_ylim(common_ymin, common_ymax)
 ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
 ax2.legend(loc='best')
@@ -1201,7 +1202,7 @@ if DESI_min <= Ly_alpha <= DESI_max:
 if DESI_min <= Ly_beta <= DESI_max:
     ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
 ax3.set_xlabel('Wavelength / Å')
-# ax3.set_ylim(common_ymin, common_ymax)
+ax3.set_ylim(common_ymin, common_ymax)
 ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
 ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
 ax3.legend(loc='best')
