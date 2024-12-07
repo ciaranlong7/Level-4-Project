@@ -18,24 +18,25 @@ from dust_extinction.parameter_averages import G23
 c = 299792458
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
-# #random list of object names taken from parent catalogue
-# object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
-#                 '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
-#                 '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
-#                 '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
-#                 '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-#                 '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
-#                 '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
-#                 '122256.17+555533.3']
+#random list of object names taken from parent catalogue
+object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
+                '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
+                '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
+                '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
+                '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
+                '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
+                '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
+                '122256.17+555533.3']
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 # parent_sample = pd.read_csv('guo23_parent_sample.csv')
 # columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
 # parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
 # object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
+#Need some way of error handling the timeout when pulling SDSS & DESI spectra from online.
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -47,6 +48,8 @@ W1_wl = 3.4e4 #Angstroms
 W2_wl = 4.6e4
 
 object_names_list = [] #Keeps track of objects that met MIR data requirements to take z score & absolute change
+SDSS_redshifts = []
+DESI_redshifts = []
 
 # z_score & absolute change lists
 W1_SDSS_DESI = []
@@ -485,6 +488,12 @@ for object_name in object_names:
     sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
     desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
+    # #Only for CLAGN
+    # object_row = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+    # redshift = object_row.iloc[0, 3]
+    # SDSS_z = redshift
+    # DESI_z = redshift
+
     sdss_lamb = (sdss_lamb/(1+SDSS_z))
     desi_lamb = (desi_lamb/(1+DESI_z))
 
@@ -514,6 +523,8 @@ for object_name in object_names:
         if w == 0 and r == 0: #Good W2 if true
             #Good W1 & W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
             W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
@@ -534,9 +545,9 @@ for object_name in object_names:
 
             #uncertainty in z score
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
-            W1_z_score_SDSS_DESI_unc = W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs))
+            W1_z_score_SDSS_DESI_unc = abs(W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs)))
             W1_z_score_DESI_SDSS = (W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)
-            W1_z_score_DESI_SDSS_unc = W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs))
+            W1_z_score_DESI_SDSS_unc = abs(W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs)))
 
             W1_SDSS_DESI.append(W1_z_score_SDSS_DESI)
             W1_SDSS_DESI_unc.append(W1_z_score_SDSS_DESI_unc)
@@ -569,9 +580,9 @@ for object_name in object_names:
             W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
-            W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+            W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
             W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
-            W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
+            W2_z_score_DESI_SDSS_unc = abs(W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs)))
 
             W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
             W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
@@ -735,6 +746,8 @@ for object_name in object_names:
         else: 
             #good W1, bad W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
             W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
@@ -750,9 +763,9 @@ for object_name in object_names:
             W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
 
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
-            W1_z_score_SDSS_DESI_unc = W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs))
+            W1_z_score_SDSS_DESI_unc = abs(W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs)))
             W1_z_score_DESI_SDSS = (W1_DESI_interp-W1_SDSS_interp)/(W1_SDSS_unc_interp)
-            W1_z_score_DESI_SDSS_unc = W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs))
+            W1_z_score_DESI_SDSS_unc = abs(W1_z_score_DESI_SDSS*((W1_abs_unc)/(W1_abs)))
 
             W1_SDSS_DESI.append(W1_z_score_SDSS_DESI)
             W1_SDSS_DESI_unc.append(W1_z_score_SDSS_DESI_unc)
@@ -865,6 +878,8 @@ for object_name in object_names:
         if w == 0 and r == 0: #Good W2 if true
             #Bad W1, good W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             W1_abs_norm = np.nan
             W1_abs_norm_unc = np.nan
@@ -914,9 +929,9 @@ for object_name in object_names:
             W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
-            W2_z_score_SDSS_DESI_unc = W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs))
+            W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
             W2_z_score_DESI_SDSS = (W2_DESI_interp-W2_SDSS_interp)/(W2_SDSS_unc_interp)
-            W2_z_score_DESI_SDSS_unc = W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs))
+            W2_z_score_DESI_SDSS_unc = abs(W2_z_score_DESI_SDSS*((W2_abs_unc)/(W2_abs)))
 
             W2_SDSS_DESI.append(W2_z_score_SDSS_DESI)
             W2_SDSS_DESI_unc.append(W2_z_score_SDSS_DESI_unc)
@@ -1039,6 +1054,8 @@ quantifying_change_data = {
 
     "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #33
     "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #34
+    "SDSS Redshift": SDSS_redshifts, #35
+    "DESI Redshift": DESI_redshifts, #36
 
 }
 
@@ -1046,5 +1063,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
-# df.to_csv("AGN_Quantifying_Change.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change.csv", index=False)
+df.to_csv("AGN_Quantifying_Change.csv", index=False)

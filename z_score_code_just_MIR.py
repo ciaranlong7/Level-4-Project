@@ -27,6 +27,8 @@ W1_wl = 3.4e4 #Angstroms
 W2_wl = 4.6e4
 
 object_names_list = [] #Keeps track of objects that met MIR data requirements to take z score & absolute change
+SDSS_redshifts = []
+DESI_redshifts = []
 
 # z_score & absolute change lists
 W1_max = []
@@ -160,7 +162,6 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
         #out of for loop now
-        W1_data = [tup for tup in W1_data if tup[2] <= 0.5] #filtering for uncertainties <= 0.5 mag
     else:
         W1_data = [ (0,0,0) ]
 
@@ -196,7 +197,6 @@ for object_name in object_names:
                 W2_mjds.append(W2_mag[i][1])
                 W2_unc_list.append(W2_mag[i][2])
                 continue
-        W2_data = [tup for tup in W2_data if tup[2] <= 0.5] #filtering for uncertainties <= 0.5 mag
     else:
         W2_data = [ (0,0,0) ]
 
@@ -214,11 +214,15 @@ for object_name in object_names:
         print('Bad W1 & W2 data')
         continue
 
+    SDSS_z = object_data.iloc[0, 2]
+    DESI_z = object_data.iloc[0, 9]
 
     if m == 0: #Good W1 if true
         if n == 0: #Good W2 if true
             #Good W1 & W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             min_mjd = min([W1_data[0][1], W2_data[0][1]])
 
@@ -229,6 +233,8 @@ for object_name in object_names:
             W1_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W1_data, W1_averages_flux)] #See document in week 5 folder for conversion.
             W2_averages_flux = [flux(tup[0], W2_k, W2_wl) for tup in W2_data]
             W2_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W2_data, W2_averages_flux)]
+
+            # W1_flux_minus_unc = 
 
             W1_max_index = max(enumerate(W1_averages_flux), key=lambda x: x[1])[0]
             W1_min_index = min(enumerate(W1_averages_flux), key=lambda x: x[1])[0]
@@ -244,9 +250,9 @@ for object_name in object_names:
 
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
-            W1_z_score_max_unc = W1_z_score_max*((W1_abs_unc)/(W1_abs))
+            W1_z_score_max_unc = abs(W1_z_score_max*((W1_abs_unc)/(W1_abs)))
             W1_z_score_min = (W1_averages_flux[W1_min_index]-W1_averages_flux[W1_max_index])/(W1_av_uncs_flux[W1_min_index])
-            W1_z_score_min_unc = W1_z_score_min*((W1_abs_unc)/(W1_abs))
+            W1_z_score_min_unc = abs(W1_z_score_min*((W1_abs_unc)/(W1_abs)))
 
             W1_max.append(W1_z_score_max)
             W1_max_unc.append(W1_z_score_max_unc)
@@ -270,9 +276,9 @@ for object_name in object_names:
             W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
-            W2_z_score_max_unc = W2_z_score_max*((W2_abs_unc)/(W2_abs))
+            W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
             W2_z_score_min = (W2_averages_flux[W2_min_index]-W2_averages_flux[W2_max_index])/(W2_av_uncs_flux[W2_min_index])
-            W2_z_score_min_unc = W2_z_score_min*((W2_abs_unc)/(W2_abs))
+            W2_z_score_min_unc = abs(W2_z_score_min*((W2_abs_unc)/(W2_abs)))
 
             W2_max.append(W2_z_score_max)
             W2_max_unc.append(W2_z_score_max_unc)
@@ -318,6 +324,8 @@ for object_name in object_names:
         else: 
             #good W1, bad W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             min_mjd = W1_data[0][1]
 
@@ -338,9 +346,9 @@ for object_name in object_names:
 
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
-            W1_z_score_max_unc = W1_z_score_max*((W1_abs_unc)/(W1_abs))
+            W1_z_score_max_unc = abs(W1_z_score_max*((W1_abs_unc)/(W1_abs)))
             W1_z_score_min = (W1_averages_flux[W1_min_index]-W1_averages_flux[W1_max_index])/(W1_av_uncs_flux[W1_min_index])
-            W1_z_score_min_unc = W1_z_score_min*((W1_abs_unc)/(W1_abs))
+            W1_z_score_min_unc = abs(W1_z_score_min*((W1_abs_unc)/(W1_abs)))
 
             W1_max.append(W1_z_score_max)
             W1_max_unc.append(W1_z_score_max_unc)
@@ -403,6 +411,8 @@ for object_name in object_names:
         if n == 0: #Good W2 if true
             #Bad W1, good W2
             object_names_list.append(object_name)
+            SDSS_redshifts.append(SDSS_z)
+            DESI_redshifts.append(DESI_z)
 
             min_mjd = W2_data[0][1]
 
@@ -438,9 +448,9 @@ for object_name in object_names:
             W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
-            W2_z_score_max_unc = W2_z_score_max*((W2_abs_unc)/(W2_abs))
+            W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
             W2_z_score_min = (W2_averages_flux[W2_min_index]-W2_averages_flux[W2_max_index])/(W2_av_uncs_flux[W2_min_index])
-            W2_z_score_min_unc = W2_z_score_min*((W2_abs_unc)/(W2_abs))
+            W2_z_score_min_unc = abs(W2_z_score_min*((W2_abs_unc)/(W2_abs)))
 
             W2_max.append(W2_z_score_max)
             W2_max_unc.append(W2_z_score_max_unc)
@@ -517,6 +527,8 @@ quantifying_change_data = {
     "Mean Z Score Unc": mean_zscore_unc, #20
     "Mean Normalised Flux Change": mean_norm_flux_change, #21
     "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #22
+
+    "Redshift": mean_norm_flux_change_unc, #23
 
 }
 
