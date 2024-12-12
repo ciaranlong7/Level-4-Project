@@ -7,15 +7,17 @@ from astroquery.ipac.irsa import Irsa
 
 c = 299792458
 
-# #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
-
-#When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 parent_sample = pd.read_csv('guo23_parent_sample.csv')
+parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
 columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
 parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
-object_names = parent_sample.iloc[:, 4].sample(n=200, random_state=42) #randomly selecting 250 object names from parent sample
+
+# #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+
+#When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
+object_names = parent_sample.iloc[:, 3].sample(n=100, random_state=42) #randomly selecting 250 object names from parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -66,10 +68,6 @@ elif Min_SNR == 2:
 else:
     print('select a valid min SNR - 10, 3 or 2.')
 
-parent_sample = pd.read_csv('guo23_parent_sample.csv')
-parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
-columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
-parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
 g = 0
 for object_name in object_names:
     print(g)
@@ -101,10 +99,10 @@ for object_name in object_names:
     if MIR_SNR == 'C':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
-    if MIR_SNR == 'B':
+    elif MIR_SNR == 'B':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
-    if MIR_SNR == 'A':
+    elif MIR_SNR == 'A':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
 
@@ -165,8 +163,8 @@ for object_name in object_names:
     else:
         W1_data = [ (0,0,0) ]
 
+    # W2 data second
     if len(W2_mag) > 1:
-        # W2 data second
         W2_list = []
         W2_unc_list = []
         W2_mjds = []
@@ -201,12 +199,11 @@ for object_name in object_names:
         W2_data = [ (0,0,0) ]
 
     #want a minimum of 5 epochs to conduct analysis on.
-    #Also want the data spaced out a minimum of 1500 days apart
-    if len(W1_data) > 5 and W1_data[-1][1] - W1_data[0][1] > 1500:
+    if len(W1_data) > 5:
         m = 0
     else:
         m = 1
-    if len(W2_data) > 5 and W2_data[-1][1] - W2_data[0][1] > 1500:
+    if len(W2_data) > 5:
         n = 0
     else:
         n = 1
@@ -234,8 +231,6 @@ for object_name in object_names:
             W2_averages_flux = [flux(tup[0], W2_k, W2_wl) for tup in W2_data]
             W2_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W2_data, W2_averages_flux)]
 
-            # W1_flux_minus_unc = 
-
             W1_max_index = max(enumerate(W1_averages_flux), key=lambda x: x[1])[0]
             W1_min_index = min(enumerate(W1_averages_flux), key=lambda x: x[1])[0]
 
@@ -244,9 +239,9 @@ for object_name in object_names:
             W1_abs_unc = np.sqrt(W1_av_uncs_flux[W1_max_index]**2 + W1_av_uncs_flux[W1_min_index]**2)
 
             #uncertainty in normalised flux change
-            W1_av_unc = (1/len(W1_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-            W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
+            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
 
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
@@ -271,9 +266,9 @@ for object_name in object_names:
             W2_abs = abs(W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])
             W2_abs_unc = np.sqrt(W2_av_uncs_flux[W2_max_index]**2 + W2_av_uncs_flux[W2_min_index]**2)
 
-            W2_av_unc = (1/len(W2_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
+            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
             W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
@@ -340,9 +335,9 @@ for object_name in object_names:
             W1_abs = abs(W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])
             W1_abs_unc = np.sqrt(W1_av_uncs_flux[W1_max_index]**2 + W1_av_uncs_flux[W1_min_index]**2)
 
-            W1_av_unc = (1/len(W1_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-            W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
+            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
 
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
@@ -443,9 +438,9 @@ for object_name in object_names:
             W2_abs = abs(W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])
             W2_abs_unc = np.sqrt(W2_av_uncs_flux[W2_max_index]**2 + W2_av_uncs_flux[W2_min_index]**2)
 
-            W2_av_unc = (1/len(W2_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
+            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
             W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
@@ -528,13 +523,13 @@ quantifying_change_data = {
     "Mean Normalised Flux Change": mean_norm_flux_change, #21
     "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #22
 
-    "Redshift": mean_norm_flux_change_unc, #23
-
+    "SDSS Redshift": SDSS_redshifts, #23
+    "DESI Redshift": DESI_redshifts, #24
 }
 
 # Convert the data into a DataFrame
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-# df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
-df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
+df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
+# df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)

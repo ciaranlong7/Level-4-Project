@@ -14,8 +14,15 @@ from sparcl.client import SparclClient
 from dl import queryClient as qc
 import sfdmap
 from dust_extinction.parameter_averages import G23
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 c = 299792458
+client = SparclClient(connect_timeout=10)
+
+parent_sample = pd.read_csv('guo23_parent_sample.csv')
+parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
+columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
+parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 # Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
@@ -32,9 +39,6 @@ object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9'
                 '122256.17+555533.3']
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# parent_sample = pd.read_csv('guo23_parent_sample.csv')
-# columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
-# parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
 # object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
 #Need some way of error handling the timeout when pulling SDSS & DESI spectra from online.
 
@@ -99,49 +103,49 @@ elif Min_SNR == 2:
 else:
     print('select a valid min SNR - 10, 3 or 2.')
 
-max_day_gap = 600 #max day gap to linearly interpolate over
-min_dps = 1 #minimum dps per epoch
+max_day_gap = 200 #max day gap to linearly interpolate over
 
 def find_closest_indices(x_vals, value):
     t = 0
+    ninety_first = 0
+    ninety_last = 0
+    ninety_before = 0
+    ninety_after = 0
     if value <= x_vals[0]: #mjd is before first observation
-        t += 1
-        print(f'{x_vals[0] - value} days before 1st observation (probably SDSS)')
-        return 0, 0, t
+        if x_vals[0] - value > 90:
+            t += 1
+            print(f'{x_vals[0] - value} days before 1st observation (probably SDSS)')
+            return 0, 0, t, ninety_first, ninety_last, ninety_before, ninety_after
+        else:
+            ninety_first += 1
+            return 0, 0, t, ninety_first, ninety_last, ninety_before, ninety_after
     elif value >= x_vals[-1]: #mjd is after last observation
-        t += 1
-        print(f'{value - x_vals[-1]} days after last observation (probably DESI)')
-        return 0, 0, t
+        if value - x_vals[-1] > 90:
+            t += 1
+            print(f'{value - x_vals[-1]} days after last observation (probably DESI)')
+            return 0, 0, t, ninety_first, ninety_last, ninety_before, ninety_after
+        else:
+            ninety_last += 1
+            return 0, 0, t, ninety_first, ninety_last, ninety_before, ninety_after
     for i in range(len(x_vals) - 1):
         if x_vals[i] <= value <= x_vals[i + 1]:
             before_index = i
             after_index = i + 1
             if x_vals[after_index] - x_vals[before_index] > max_day_gap:
-                t += 1
-            return before_index, after_index, t
-
+                if x_vals[after_index] - value < 90:
+                    ninety_before += 1
+                elif value - x_vals[before_index] < 90:
+                    ninety_after += 1
+                else:
+                    t += 1
+            return before_index, after_index, t, ninety_first, ninety_last, ninety_before, ninety_after
+            
 #DESI spectrum retrieval method
+inc = client.get_all_fields()
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
 def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-    """
-    Retrieves the primary spectrum's wavelength and flux for a given target ID.
-
-    Parameters:
-    - targetid (int): The target ID of the object.
-
-    Returns:
-    - desi_lamb (array): Wavelength data for the primary spectrum.
-    - desi_flux (array): Flux data for the primary spectrum.
-    """
-    # Initialize SparclClient
-    client = SparclClient()
-    
-    # Get all available fields
-    inc = client.get_all_fields()
-
-    # Retrieve the spectrum by target ID
     res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
 
-    # Extract records
     records = res.records
 
     if not records: #no spectrum could be found:
@@ -191,10 +195,6 @@ sfd = sfdmap.SFDMap('SFD_dust_files') #called SFD map, but see - https://github.
 ext_model = G23(Rv=3.1) #Rv=3.1 is typical for MW - Schultz, Wiemer, 1975
 gaussian_kernel = Gaussian1DKernel(stddev=3)
 
-parent_sample = pd.read_csv('guo23_parent_sample.csv')
-parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
-columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
-parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
 g = 0
 for object_name in object_names:
     print(g)
@@ -206,7 +206,7 @@ for object_name in object_names:
     SDSS_mjd = object_data.iloc[0, 5]
     DESI_mjd = object_data.iloc[0, 11]
 
-    if SDSS_mjd < 55179: #55179 is 14/12/2009 - the date of the 1st ever WISE observation
+    if SDSS_mjd < 55089: #55179 is 14/12/2009 - the date of the 1st ever WISE observation. Accept data that is within 90 days of this
         print(f'SDSS observation was {55179 - SDSS_mjd} days before 1st ever WISE observation.')
 
     # Automatically querying catalogues
@@ -231,10 +231,10 @@ for object_name in object_names:
     if MIR_SNR == 'C':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX', 'CA', 'CB', 'CC', 'CU', 'CX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB', 'AC', 'BC', 'CC', 'UC', 'XC'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
-    if MIR_SNR == 'B':
+    elif MIR_SNR == 'B':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX', 'BA', 'BB', 'BC', 'BU', 'BX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA', 'AB', 'BB', 'CB', 'UB', 'XB'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
-    if MIR_SNR == 'A':
+    elif MIR_SNR == 'A':
         filtered_NEO_rows_W1 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'AB', 'AC', 'AU', 'AX'])) & (filtered_NEO_rows.iloc[:, 44] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '01']))]
         filtered_NEO_rows_W2 = filtered_NEO_rows[(filtered_NEO_rows.iloc[:, 34].isin(['AA', 'BA', 'CA', 'UA', 'XA'])) & (filtered_NEO_rows.iloc[:, 46] == '') & (filtered_NEO_rows.iloc[:, 39].isin(['00', '10']))]
 
@@ -367,10 +367,10 @@ for object_name in object_names:
         W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
         W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
-        before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
-        before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
-        before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
-        before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
+        before_SDSS_index_W1, after_SDSS_index_W1, q, ninety_first_SDSS_W1, ninety_last_SDSS_W1, ninety_before_SDSS_W1, ninety_after_SDSS_W1 = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+        before_SDSS_index_W2, after_SDSS_index_W2, w, ninety_first_SDSS_W2, ninety_last_SDSS_W2, ninety_before_SDSS_W2, ninety_after_SDSS_W2 = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W1, after_DESI_index_W1, e, ninety_first_DESI_W1, ninety_last_DESI_W1, ninety_before_DESI_W1, ninety_after_DESI_W1 = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+        before_DESI_index_W2, after_DESI_index_W2, r, ninety_first_DESI_W2, ninety_last_DESI_W2, ninety_before_DESI_W2, ninety_after_DESI_W2 = find_closest_indices(W2_av_mjd_date, DESI_mjd)
         m = 0
         n = 0
     elif len(W1_mag) > 1 and len(W2_mag) <= 1:
@@ -384,8 +384,8 @@ for object_name in object_names:
         W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
         W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 
-        before_SDSS_index_W1, after_SDSS_index_W1, q = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
-        before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_date, DESI_mjd)
+        before_SDSS_index_W1, after_SDSS_index_W1, q, ninety_first_SDSS_W1, ninety_last_SDSS_W1, ninety_before_SDSS_W1, ninety_after_SDSS_W1 = find_closest_indices(W1_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W1, after_DESI_index_W1, e, ninety_first_DESI_W1, ninety_last_DESI_W1, ninety_before_DESI_W1, ninety_after_DESI_W1 = find_closest_indices(W1_av_mjd_date, DESI_mjd)
         w = 1 #raising a flag that there is no W2 data, but there is W1 data
         r = 1
         m = 0
@@ -401,8 +401,8 @@ for object_name in object_names:
         W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
         W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
-        before_SDSS_index_W2, after_SDSS_index_W2, w = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
-        before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
+        before_SDSS_index_W2, after_SDSS_index_W2, w, ninety_first_SDSS_W2, ninety_last_SDSS_W2, ninety_before_SDSS_W2, ninety_after_SDSS_W2 = find_closest_indices(W2_av_mjd_date, SDSS_mjd)
+        before_DESI_index_W2, after_DESI_index_W2, r, ninety_first_DESI_W2, ninety_last_DESI_W2, ninety_before_DESI_W2, ninety_after_DESI_W2 = find_closest_indices(W2_av_mjd_date, DESI_mjd)
         q = 1 #raising a flag that there is no W1 data, but there is W2 data
         e = 1
         m = 1 #raising a flag that before_SDSS_index_W1, etc. don't exist
@@ -413,24 +413,6 @@ for object_name in object_names:
     if q != 0 or e != 0:
         if w != 0 or e != 0: #bad W1 & W2 - exit
             print('Bad W1 & W2 data')
-            continue
-
-    #Filtering for min dps in all adjactent epochs
-    if W1_epoch_dps[before_SDSS_index_W1] < min_dps:
-        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
-            print('Not enough data in W1 & W2')
-            continue
-    elif W1_epoch_dps[after_SDSS_index_W1] < min_dps:
-        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
-            print('Not enough data in W1 & W2')
-            continue
-    elif W1_epoch_dps[before_DESI_index_W1] < min_dps:
-        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
-            print('Not enough data in W1 & W2')
-            continue
-    elif W1_epoch_dps[after_DESI_index_W1] < min_dps:
-        if W2_epoch_dps[before_SDSS_index_W2] < min_dps or W2_epoch_dps[after_SDSS_index_W2] < min_dps or W2_epoch_dps[before_DESI_index_W2] < min_dps or W2_epoch_dps[after_DESI_index_W2] < min_dps: 
-            print('Not enough data in W1 & W2')
             continue
 
     SDSS_plate_number = object_data.iloc[0, 4]
@@ -526,22 +508,48 @@ for object_name in object_names:
             SDSS_redshifts.append(SDSS_z)
             DESI_redshifts.append(DESI_z)
 
-            #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
-            W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-            W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-
-            #uncertainties in interpolated flux
-            W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-            W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
-
+            if ninety_first_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[0]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[0]
+            elif ninety_last_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[-1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[-1]
+            elif ninety_before_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[before_SDSS_index_W1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[before_SDSS_index_W1]
+            elif ninety_after_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[after_SDSS_index_W1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[after_SDSS_index_W1]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS.
+                W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
+                W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
+            
+            if ninety_first_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[0]
+                W1_DESI_unc_interp = W1_av_uncs_flux[0]
+            elif ninety_last_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[-1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[-1]
+            elif ninety_before_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[before_DESI_index_W1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[before_DESI_index_W1]
+            elif ninety_after_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[after_DESI_index_W1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[after_DESI_index_W1]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to DESI.
+                W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
+                W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
+            
             #uncertainty in absolute flux change
             W1_abs = abs(W1_SDSS_interp-W1_DESI_interp)
             W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
 
             #uncertainty in normalised flux change
-            W1_av_unc = (1/len(W1_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-            W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
+            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
 
             #uncertainty in z score
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
@@ -566,18 +574,46 @@ for object_name in object_names:
             W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
             W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
 
-            W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
-            W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
-
-            W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
-            W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
-
+            if ninety_first_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[0]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[0]
+            elif ninety_last_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[-1]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[-1]
+            elif ninety_before_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[before_SDSS_index_W2]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[before_SDSS_index_W2]
+            elif ninety_after_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[after_SDSS_index_W2]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[after_SDSS_index_W2]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS.
+                W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+                W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+            
+            if ninety_first_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[0]
+                W2_DESI_unc_interp = W2_av_uncs_flux[0]
+            elif ninety_last_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[-1]
+                W2_DESI_unc_interp = W2_av_uncs_flux[-1]
+            elif ninety_before_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[before_DESI_index_W2]
+                W2_DESI_unc_interp = W2_av_uncs_flux[before_DESI_index_W2]
+            elif ninety_after_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[after_DESI_index_W2]
+                W2_DESI_unc_interp = W2_av_uncs_flux[after_DESI_index_W2]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to DESI.
+                W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+                W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+            
             W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
             W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
-            W2_av_unc = (1/len(W2_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
+            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
             W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
@@ -749,18 +785,46 @@ for object_name in object_names:
             SDSS_redshifts.append(SDSS_z)
             DESI_redshifts.append(DESI_z)
 
-            W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
-            W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
-
-            W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
-            W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
+            if ninety_first_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[0]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[0]
+            elif ninety_last_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[-1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[-1]
+            elif ninety_before_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[before_SDSS_index_W1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[before_SDSS_index_W1]
+            elif ninety_after_SDSS_W1 == 1:
+                W1_SDSS_interp = W1_averages_flux[after_SDSS_index_W1]
+                W1_SDSS_unc_interp = W1_av_uncs_flux[after_SDSS_index_W1]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS.
+                W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
+                W1_SDSS_unc_interp = np.sqrt((((W1_av_mjd_date[after_SDSS_index_W1] - SDSS_mjd)/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[before_SDSS_index_W1])**2 + (((SDSS_mjd - W1_av_mjd_date[before_SDSS_index_W1])/(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1]))*W1_av_uncs_flux[after_SDSS_index_W1])**2)
+            
+            if ninety_first_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[0]
+                W1_DESI_unc_interp = W1_av_uncs_flux[0]
+            elif ninety_last_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[-1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[-1]
+            elif ninety_before_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[before_DESI_index_W1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[before_DESI_index_W1]
+            elif ninety_after_DESI_W1 == 1:
+                W1_DESI_interp = W1_averages_flux[after_DESI_index_W1]
+                W1_DESI_unc_interp = W1_av_uncs_flux[after_DESI_index_W1]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to DESI.
+                W1_DESI_interp = np.interp(DESI_mjd, W1_av_mjd_date, W1_averages_flux)
+                W1_DESI_unc_interp = np.sqrt((((W1_av_mjd_date[after_DESI_index_W1] - DESI_mjd)/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[before_DESI_index_W1])**2 + (((DESI_mjd - W1_av_mjd_date[before_DESI_index_W1])/(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1]))*W1_av_uncs_flux[after_DESI_index_W1])**2)
 
             W1_abs = abs(W1_SDSS_interp-W1_DESI_interp)
             W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
 
-            W1_av_unc = (1/len(W1_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W1_av_uncs_flux)) #uncertainty of the mean flux value
-            W1_abs_norm = ((W1_abs)/(np.median(W1_averages_flux)))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_av_unc)/(np.median(W1_averages_flux)))**2)
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
+            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
 
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
             W1_z_score_SDSS_DESI_unc = abs(W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs)))
@@ -915,18 +979,46 @@ for object_name in object_names:
                 W1_SDSS_gap.append(np.nan)
                 W1_DESI_gap.append(np.nan)
 
-            W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
-            W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
-
-            W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
-            W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
+            if ninety_first_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[0]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[0]
+            elif ninety_last_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[-1]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[-1]
+            elif ninety_before_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[before_SDSS_index_W2]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[before_SDSS_index_W2]
+            elif ninety_after_SDSS_W2 == 1:
+                W2_SDSS_interp = W2_averages_flux[after_SDSS_index_W2]
+                W2_SDSS_unc_interp = W2_av_uncs_flux[after_SDSS_index_W2]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS.
+                W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
+                W2_SDSS_unc_interp = np.sqrt((((W2_av_mjd_date[after_SDSS_index_W2] - SDSS_mjd)/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[before_SDSS_index_W2])**2 + (((SDSS_mjd - W2_av_mjd_date[before_SDSS_index_W2])/(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2]))*W2_av_uncs_flux[after_SDSS_index_W2])**2)
+            
+            if ninety_first_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[0]
+                W2_DESI_unc_interp = W2_av_uncs_flux[0]
+            elif ninety_last_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[-1]
+                W2_DESI_unc_interp = W2_av_uncs_flux[-1]
+            elif ninety_before_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[before_DESI_index_W2]
+                W2_DESI_unc_interp = W2_av_uncs_flux[before_DESI_index_W2]
+            elif ninety_after_DESI_W2 == 1:
+                W2_DESI_interp = W2_averages_flux[after_DESI_index_W2]
+                W2_DESI_unc_interp = W2_av_uncs_flux[after_DESI_index_W2]
+            else:
+                #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to DESI.
+                W2_DESI_interp = np.interp(DESI_mjd, W2_av_mjd_date, W2_averages_flux)
+                W2_DESI_unc_interp = np.sqrt((((W2_av_mjd_date[after_DESI_index_W2] - DESI_mjd)/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[before_DESI_index_W2])**2 + (((DESI_mjd - W2_av_mjd_date[before_DESI_index_W2])/(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2]))*W2_av_uncs_flux[after_DESI_index_W2])**2)
 
             W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
             W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
-            W2_av_unc = (1/len(W2_av_uncs_flux))*np.sqrt(sum(unc**2 for unc in W2_av_uncs_flux)) #uncertainty of the mean flux value
-            W2_abs_norm = ((W2_abs)/(np.median(W2_averages_flux)))
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_av_unc)/(np.median(W2_averages_flux)))**2)
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
+            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
             W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
