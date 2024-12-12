@@ -1,23 +1,20 @@
 import numpy as np
 import pandas as pd
+from scipy.stats import median_abs_deviation
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
-from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.coordinates import SkyCoord
 from astroquery.ipac.irsa import Irsa
 
 c = 299792458
 
-parent_sample = pd.read_csv('guo23_parent_sample.csv')
-parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
-columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
-parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
+parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-object_names = parent_sample.iloc[:, 3].sample(n=100, random_state=42) #randomly selecting 250 object names from parent sample
+object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -91,7 +88,7 @@ for object_name in object_names:
     filtered_WISE_rows = WISE_data[(WISE_data.iloc[:, 6] == 0) & (WISE_data.iloc[:, 39] == 1) & (WISE_data.iloc[:, 41] == '0000') & (WISE_data.iloc[:, 40] > 5)]
     #filtering for cc_flags == 0 in all bands, qi_fact == 1, no moon masking flag & separation of the WISE instrument to the SAA > 5 degrees. Unlike with Neowise, there is no individual column for cc_flags in each band
 
-    filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 36] > 5) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qual_frame is > 5 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
+    filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 37] == 1) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qi_fact == 1 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
     #"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
     # The qi_fact column seems to be equal to qual_frame/10.
 
@@ -143,7 +140,10 @@ for object_name in object_names:
                 W1_list.append(W1_mag[i][0])
                 W1_mjds.append(W1_mag[i][1])
                 W1_unc_list.append(W1_mag[i][2])
-                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                if len(W1_list) > 1:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                else:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
@@ -151,7 +151,10 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                if len(W1_list) > 1:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                else:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 W1_list = []
                 W1_mjds = []
                 W1_unc_list = []
@@ -179,7 +182,10 @@ for object_name in object_names:
                 W2_list.append(W2_mag[i][0])
                 W2_mjds.append(W2_mag[i][1])
                 W2_unc_list.append(W2_mag[i][2])
-                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                if len(W2_list) > 1:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                else:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
@@ -187,7 +193,10 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                if len(W2_list) > 1:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                else:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 W2_list = []
                 W2_mjds = []
                 W2_unc_list = []
@@ -198,12 +207,12 @@ for object_name in object_names:
     else:
         W2_data = [ (0,0,0) ]
 
-    #want a minimum of 5 epochs to conduct analysis on.
-    if len(W1_data) > 5:
+    #want a minimum of 8 (out of ~25 possible) epochs to conduct analysis on.
+    if len(W1_data) > 8:
         m = 0
     else:
         m = 1
-    if len(W2_data) > 5:
+    if len(W2_data) > 8:
         n = 0
     else:
         n = 1
@@ -531,5 +540,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
-# df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
+df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)

@@ -3,11 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 import math
-import scipy.optimize
 from scipy.interpolate import interp1d
 from scipy.stats import median_abs_deviation
 from astropy.io import fits
-from astropy.table import Table
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
 from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.coordinates import SkyCoord
@@ -27,8 +25,8 @@ c = 299792458
 #G23 dust extinction model:
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
-object_name = '152517.57+401357.6' #Object A - assigned to me
-# object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
+# object_name = '152517.57+401357.6' #Object A - assigned to me
+object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chose an AGN, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
@@ -71,17 +69,10 @@ elif Min_SNR == 2:
 else:
     print('select a valid min SNR - 10, 3 or 2.')
 
-max_day_gap = 220 #max day gap to linearly interpolate over
-min_dps = 1 #minimum dps per epoch
+max_day_gap = 250 #max day gap to linearly interpolate over
 
-
-parent_sample = pd.read_csv('guo23_parent_sample.csv')
-parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
-print(f'Objects in parent sample, before duplicates removed = {len(parent_sample)}')
-columns_to_check = parent_sample.columns[[3, 5, 11]] #checking SDSS name, SDSS mjd & DESI mjd
-parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
-parent_sample.to_csv('guo23_parent_sample_no_duplicates.csv', index=False)
-print(f'Objects in parent sample, after duplicates removed = {len(parent_sample)}')
+parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
 SDSS_RA = object_data.iloc[0, 0]
 SDSS_DEC = object_data.iloc[0, 1]
@@ -141,13 +132,12 @@ else:
 
 client = SparclClient(connect_timeout=10)
 
+inc = client.get_all_fields()
+
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
 def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
     
-    inc = client.get_all_fields()
-
     res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR'])
-    # res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR', 'DESI-DR1']) # only have access to EDR
 
     records = res.records
 
@@ -207,7 +197,13 @@ inverse_DESI_lamb = [1/(x*10**(-4)) for x in desi_lamb]
 sdss_flux = sdss_flux/ext_model.extinguish(inverse_SDSS_lamb, Ebv=ebv) #divide to remove the effect of dust
 desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
-# Correcting for redshift.
+# Correcting for redshift
+if object_name in Guo_table4.iloc[:, 0].values:
+    object_row = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+    redshift = object_row.iloc[0, 3]
+    SDSS_z = redshift
+    DESI_z = redshift
+
 sdss_lamb = (sdss_lamb/(1+SDSS_z))
 desi_lamb = (desi_lamb/(1+DESI_z))
 
@@ -272,95 +268,95 @@ else:
     DESI_min = 0
     DESI_max = 1
 
-if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
+# if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
 
-    closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
-    closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
-    sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
-    sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
-    sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
+#     closest_index_lower_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+#     closest_index_upper_sdss = min(range(len(sdss_lamb)), key=lambda i: abs(sdss_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+#     sdss_blue_lamb = sdss_lamb[closest_index_lower_sdss:closest_index_upper_sdss]
+#     sdss_blue_flux = sdss_flux[closest_index_lower_sdss:closest_index_upper_sdss]
+#     sdss_blue_flux_smooth = Gaus_smoothed_SDSS[closest_index_lower_sdss:closest_index_upper_sdss]
 
-    desi_lamb = desi_lamb.tolist()
-    closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
-    closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
-    desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
-    desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
-    desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
+#     desi_lamb = desi_lamb.tolist()
+#     closest_index_lower_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3000)) #3000 to avoid Mg2 emission line
+#     closest_index_upper_desi = min(range(len(desi_lamb)), key=lambda i: abs(desi_lamb[i] - 3920)) #3920 to avoid K Fraunhofer line
+#     desi_blue_lamb = desi_lamb[closest_index_lower_desi:closest_index_upper_desi]
+#     desi_blue_flux = desi_flux[closest_index_lower_desi:closest_index_upper_desi]
+#     desi_blue_flux_smooth = Gaus_smoothed_DESI[closest_index_lower_desi:closest_index_upper_desi]
 
-    #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
-    sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
-    sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
+#     #interpolating SDSS flux so lambda values match up with DESI . Done this way round because DESI lambda values are closer together.
+#     sdss_interp_fn = interp1d(sdss_blue_lamb, sdss_blue_flux_smooth, kind='linear', fill_value='extrapolate')
+#     sdss_blue_flux_interp = sdss_interp_fn(desi_blue_lamb) #interpolating the sdss flux to be in line with the desi lambda values
 
-    if np.median(sdss_blue_flux_interp) > np.median(desi_blue_flux_smooth): #want turned-on minus turned-off if a CLAGN
-        flux_change = [sdss - desi for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
-        norm_factor = np.median(desi_blue_flux_smooth[-25:]) #normalise by the median of the last 25 values in the off state
-        norm_flux_change = [flux/norm_factor for flux in flux_change]
-    else:
-        flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
-        norm_factor = np.median(sdss_blue_flux_interp[-25:]) #normalise by the median of the last 25 values in the off state
-        norm_flux_change = [flux/norm_factor for flux in flux_change]
+#     if np.median(sdss_blue_flux_interp) > np.median(desi_blue_flux_smooth): #want turned-on minus turned-off if a CLAGN
+#         flux_change = [sdss - desi for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+#         norm_factor = np.median(desi_blue_flux_smooth[-25:]) #normalise by the median of the last 25 values in the off state
+#         norm_flux_change = [flux/norm_factor for flux in flux_change]
+#     else:
+#         flux_change = [desi - sdss for sdss, desi in zip(sdss_blue_flux_interp, desi_blue_flux_smooth)]
+#         norm_factor = np.median(sdss_blue_flux_interp[-25:]) #normalise by the median of the last 25 values in the off state
+#         norm_flux_change = [flux/norm_factor for flux in flux_change]
 
-    #Big plot of difference in flux between SDSS & DESI
-    fig = plt.figure(figsize=(12, 7))
-    gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+#     #Big plot of difference in flux between SDSS & DESI
+#     fig = plt.figure(figsize=(12, 7))
+#     gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-    common_ymin = 0
-    common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist()+Gaus_smoothed_DESI.tolist())
+#     common_ymin = 0
+#     common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist()+Gaus_smoothed_DESI.tolist())
 
-    # Top plot spanning two columns and three rows (ax1)
-    ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-    ax1.plot(desi_blue_lamb, norm_flux_change, color = 'red', label = f'{round(DESI_mjd -SDSS_mjd)} days between observations')
-    ax1.set_xlabel('Wavelength / Å')
-    ax1.set_ylabel('Turned On Flux - Turned Off Flux (Normalised)')
-    ax1.set_title(f'Normalised Accretion Disk Flux Contribution ({object_name})')
+#     # Top plot spanning two columns and three rows (ax1)
+#     ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+#     ax1.plot(desi_blue_lamb, norm_flux_change, color = 'red', label = f'{round(DESI_mjd -SDSS_mjd)} days between observations')
+#     ax1.set_xlabel('Wavelength / Å')
+#     ax1.set_ylabel('Turned On Flux - Turned Off Flux (Normalised)')
+#     ax1.set_title(f'Normalised Accretion Disk Flux Contribution ({object_name})')
 
-    # Bottom left plot spanning 2 rows and 1 column (ax2)
-    ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-    ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-    ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-    ax2.set_xlabel('Wavelength / Å')
-    ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-    ax2.set_ylim(common_ymin, common_ymax)
-    ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+#     # Bottom left plot spanning 2 rows and 1 column (ax2)
+#     ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+#     ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+#     ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+#     ax2.set_xlabel('Wavelength / Å')
+#     ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+#     ax2.set_ylim(common_ymin, common_ymax)
+#     ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
 
-    # Bottom right plot spanning 2 rows and 1 column (ax3)
-    ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-    ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-    ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-    ax3.set_xlabel('Wavelength / Å')
-    ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-    ax3.set_ylim(common_ymin, common_ymax)
-    ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+#     # Bottom right plot spanning 2 rows and 1 column (ax3)
+#     ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+#     ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+#     ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+#     ax3.set_xlabel('Wavelength / Å')
+#     ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+#     ax3.set_ylim(common_ymin, common_ymax)
+#     ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
 
-    fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-    #top and bottom adjust the vertical space on the top and bottom of the figure.
-    #left and right adjust the horizontal space on the left and right sides.
-    #hspace and wspace adjust the spacing between rows and columns, respectively.
-    plt.show()
+#     fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#     #top and bottom adjust the vertical space on the top and bottom of the figure.
+#     #left and right adjust the horizontal space on the left and right sides.
+#     #hspace and wspace adjust the spacing between rows and columns, respectively.
+#     plt.show()
 
 
-    #Histogram of the distribution of flux change values
-    mean_flux_change = np.mean(norm_flux_change)
-    std_flux_change = np.std(norm_flux_change)
-    x_start = mean_flux_change - std_flux_change
-    x_end = mean_flux_change + std_flux_change
-    flux_change_binsize = (math.ceil(max(norm_flux_change))-math.floor(min(norm_flux_change)))/50 #50 bins
-    bins_flux_change = np.arange(math.floor(min(norm_flux_change)), math.ceil(max(norm_flux_change)), flux_change_binsize)
-    counts, bin_edges = np.histogram(norm_flux_change, bins=bins_flux_change)
-    bin_centers = (bin_edges[:-1] + bin_edges[1:])/2
-    bin_index_start = np.argmin(abs(bin_centers - x_start))
-    bin_index_end = np.argmin(abs(bin_centers - x_end))
-    height = 1.1*max([counts[bin_index_start], counts[bin_index_end]])
+#     #Histogram of the distribution of flux change values
+#     mean_flux_change = np.mean(norm_flux_change)
+#     std_flux_change = np.std(norm_flux_change)
+#     x_start = mean_flux_change - std_flux_change
+#     x_end = mean_flux_change + std_flux_change
+#     flux_change_binsize = (max(norm_flux_change)-min(norm_flux_change))/50 #50 bins
+#     bins_flux_change = np.arange(min(norm_flux_change), max(norm_flux_change) + flux_change_binsize, flux_change_binsize)
+#     counts, bin_edges = np.histogram(norm_flux_change, bins=bins_flux_change)
+#     bin_centers = (bin_edges[:-1] + bin_edges[1:])/2
+#     bin_index_start = np.argmin(abs(bin_centers - x_start))
+#     bin_index_end = np.argmin(abs(bin_centers - x_end))
+#     height = 1.1*max([counts[bin_index_start], counts[bin_index_end]])
 
-    plt.figure(figsize=(12,7))
-    plt.hist(norm_flux_change, bins=bins_flux_change, color='orange', edgecolor='black', label=f'binsize = {flux_change_binsize}')
-    plt.axvline(mean_flux_change, linewidth=2, linestyle='--', color='black', label = f'Mean = {mean_flux_change:.2f}')
-    plt.plot((x_start, x_end), (height, height), linewidth=2, color='black', label = f'Standard Deviation = {std_flux_change:.2f}')
-    plt.xlabel('Turned On Flux - Turned Off Flux (Normalised)')
-    plt.ylabel('Frequency')
-    plt.title(f'Normalised Accretion Disk Flux Contribution ({object_name})')
-    plt.legend(loc='upper right')
-    plt.show()
+#     plt.figure(figsize=(12,7))
+#     plt.hist(norm_flux_change, bins=bins_flux_change, color='orange', edgecolor='black', label=f'binsize = {flux_change_binsize:.2f}')
+#     plt.axvline(mean_flux_change, linewidth=2, linestyle='--', color='black', label = f'Mean = {mean_flux_change:.2f}')
+#     plt.plot((x_start, x_end), (height, height), linewidth=2, color='black', label = f'Standard Deviation = {std_flux_change:.2f}')
+#     plt.xlabel('Turned On Flux - Turned Off Flux (Normalised)')
+#     plt.ylabel('Frequency')
+#     plt.title(f'Normalised Accretion Disk Flux Contribution ({object_name})')
+#     plt.legend(loc='upper right')
+#     plt.show()
 
 
 # #Plot of SDSS Spectrum - Extinction Corrected vs Uncorrected
@@ -419,20 +415,14 @@ if SDSS_min < 3000 and SDSS_max > 3920 and DESI_min < 3000 and DESI_max > 3920:
 # plt.show()
 
 # Automatically querying catalogues
-# coord = SkyCoord(153.9007071, 22.1802528, unit='deg', frame='icrs') #1st Highly Variable AGN - object_name = J101536.17+221048.9
 WISE_query = Irsa.query_region(coordinates=coord, catalog="allwise_p3as_mep", spatial="Cone", radius=2 * u.arcsec)
 NEOWISE_query = Irsa.query_region(coordinates=coord, catalog="neowiser_p1bs_psd", spatial="Cone", radius=2 * u.arcsec)
-# PTF_query = Irsa.query_region(coordinates=coord, catalog="ptf_lightcurves", spatial="Cone", radius=2 * u.arcsec)
 WISE_data = WISE_query.to_pandas()
 NEO_data = NEOWISE_query.to_pandas()
-# PTF_data = PTF_query.to_pandas()
 
 # # # checking out indexes
 # for idx, col in enumerate(WISE_data.columns):
 #     print(f"Index {idx}: {col}")
-
-# print(PTF_data.iloc[:, 3].unique()) #problem - there are two objects in my search
-# print(WISE_data.iloc[:, 41].unique())
 
 WISE_data = WISE_data.sort_values(by=WISE_data.columns[10]) #sort in ascending mjd
 NEO_data = NEO_data.sort_values(by=NEO_data.columns[42]) #sort in ascending mjd
@@ -442,7 +432,7 @@ WISE_data.iloc[:, 6] = pd.to_numeric(WISE_data.iloc[:, 6], errors='coerce')
 filtered_WISE_rows = WISE_data[(WISE_data.iloc[:, 6] == 0) & (WISE_data.iloc[:, 39] == 1) & (WISE_data.iloc[:, 41] == '0000') & (WISE_data.iloc[:, 40] > 5)]
 #filtering for cc_flags == 0 in all bands, qi_fact == 1, no moon masking flag & separation of the WISE instrument to the SAA > 5 degrees. Unlike with Neowise, there is no individual column for cc_flags in each band
 
-filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 36] > 5) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qual_frame is > 5 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
+filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 37] == 1) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qi_fact == 1 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
 #"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
 # The qi_fact column seems to be equal to qual_frame/10.
 
@@ -475,25 +465,8 @@ W2_unc = filtered_WISE_rows.iloc[:, 15].tolist() + filtered_NEO_rows_W2.iloc[:, 
 W2_mag = list(zip(W2_mag, mjd_date_W2, W2_unc))
 W2_mag = [tup for tup in W2_mag if not np.isnan(tup[0])]
 
-# final_ALLWISE_mjd = filtered_WISE_rows.iloc[:, 10].tolist()[-1]
-# first_NEO_mjd_W1 = filtered_NEO_rows_W1.iloc[:, 42].tolist()[0]
-# first_NEO_mjd_W2 = filtered_NEO_rows_W2.iloc[:, 42].tolist()[0]
-
-# filtered_PTF_rows_g = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 1] #using filter identifier column to select g_band observations
-# filtered_PTF_rows_r = filtered_PTF_rows[filtered_PTF_rows.iloc[:, 6] == 2]
-
-# mjd_date_PTF_g = filtered_PTF_rows_g.iloc[:, 0].tolist()
-# PTF_mag_g = filtered_PTF_rows_g.iloc[:, 1].tolist()
-# PTF_unc_g = filtered_PTF_rows_g.iloc[:, 2].tolist()
-
-# mjd_date_PTF_r = filtered_PTF_rows_r.iloc[:, 0].tolist()
-# PTF_mag_r = filtered_PTF_rows_r.iloc[:, 1].tolist()
-# PTF_unc_r = filtered_PTF_rows_r.iloc[:, 2].tolist()
-
 print(f'W1 data points = {len(W1_mag)}')
 print(f'W2 data points = {len(W2_mag)}')
-# print(f'g data points = {len(PTF_mag_g)}')
-# print(f'r data points = {len(PTF_mag_r)}')
 
 #Object A - The four W1_mag dps with ph_qual C are in rows, 29, 318, 386, 388
 
@@ -512,7 +485,7 @@ W1_epoch_dps = []
 W1_av_mjd_date = []
 one_epoch_W1 = []
 one_epoch_W1_unc = []
-m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+m = 3 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
 p = 0
 for i in range(len(W1_mag)):
     if i == 0: #first reading - store and move on
@@ -575,7 +548,7 @@ W2_av_mjd_date = []
 W2_epoch_dps = []
 one_epoch_W2 = []
 one_epoch_W2_unc = []
-m = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+m = 3 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
 p = 0
 for i in range(len(W2_mag)):
     if i == 0: #first reading - store and move on
@@ -589,7 +562,10 @@ for i in range(len(W2_mag)):
         W2_unc_list.append(W2_mag[i][2])
         W2_averages.append(np.median(W2_list))
         W2_av_mjd_date.append(np.median(W2_mjds))
-        W2_av_uncs.append(median_abs_deviation(W2_list))
+        if len(W2_list) > 1:
+            W2_av_uncs.append(median_abs_deviation(W2_list))
+        else:
+            W2_av_uncs.append(W2_unc_list[0])
         W2_epoch_dps.append(len(W2_list))
         if p == m:
             one_epoch_W2 = W2_list
@@ -606,7 +582,10 @@ for i in range(len(W2_mag)):
     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
         W2_averages.append(np.median(W2_list))
         W2_av_mjd_date.append(np.median(W2_mjds))
-        W2_av_uncs.append(median_abs_deviation(W2_list))
+        if len(W2_list) > 1:
+            W2_av_uncs.append(median_abs_deviation(W2_list))
+        else:
+            W2_av_uncs.append(W2_unc_list[0])
         W2_epoch_dps.append(len(W2_list))
         if p == m:
             one_epoch_W2 = W2_list
@@ -622,114 +601,18 @@ for i in range(len(W2_mag)):
         p += 1
         continue
 
-# #PTF averaging
-# g_list = []
-# g_unc_list = []
-# g_av_mag = []
-# g_av_uncs = []
-# mjd_list_g = []
-# mjd_date_g_epoch = []
-# one_epoch_g = []
-# one_epoch_g_unc = []
-# m = 0 #select an epoch, for both g & r band
-# p = 0
-# for i in range(len(PTF_mag_g)):
-#     if i == 0:
-#         g_list.append(PTF_mag_g[i])
-#         g_unc_list.append(PTF_unc_g[i])
-#         mjd_list_g.append(mjd_date_PTF_g[i])
-#         continue
-#     elif i == len(PTF_mag_g) - 1: #if final data point, close the epoch
-#         g_av_mag.append(np.median(g_list))
-#         g_av_uncs.append(median_abs_deviation(g_list))
-#         mjd_date_g_epoch.append(np.median(mjd_list_g))
-#         if p == m:
-#             one_epoch_g = g_list
-#             one_epoch_g_unc = g_unc_list
-#             one_epoch_g_mjd = mjd_list_g
-#             p += 1
-#         continue
-#     elif mjd_date_PTF_g[i] - mjd_date_PTF_g[i-1] < 100:
-#         g_list.append(PTF_mag_g[i])
-#         g_unc_list.append(PTF_unc_g[i])
-#         mjd_list_g.append(mjd_date_PTF_g[i])
-#         continue
-#     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-#         g_av_mag.append(np.median(g_list))
-#         g_av_uncs.append(median_abs_deviation(g_list))
-#         mjd_date_g_epoch.append(np.median(mjd_list_g))
-#         if p == m:
-#             one_epoch_g = g_list
-#             one_epoch_g_unc = g_unc_list
-#             one_epoch_g_mjd = mjd_list_g
-#             p += 1
-#         g_list = []
-#         g_unc_list = []
-#         mjd_list_g = []
-#         g_list.append(PTF_mag_g[i])
-#         g_unc_list.append(PTF_unc_g[i])
-#         mjd_list_g.append(mjd_date_PTF_g[i])
-#         p += 1
-#         continue
-
-# r_list = []
-# r_unc_list = []
-# r_av_mag = []
-# r_av_uncs = []
-# mjd_list_r = []
-# mjd_date_r_epoch = []
-# one_epoch_r = []
-# one_epoch_r_unc = []
-# m = 1
-# p = 0
-# for i in range(len(PTF_mag_r)):
-#     if i == 0:
-#         r_list.append(PTF_mag_r[i])
-#         r_unc_list.append(PTF_unc_r[i])
-#         mjd_list_r.append(mjd_date_PTF_r[i])
-#         continue
-#     elif i == len(PTF_mag_r) - 1:
-#         r_av_mag.append(np.median(r_list))
-#         r_av_uncs.append(median_abs_deviation(r_list))
-#         mjd_date_r_epoch.append(np.median(mjd_list_r))
-#         if p == m:
-#             one_epoch_r = r_list
-#             one_epoch_r_unc = r_unc_list
-#             one_epoch_r_mjd = mjd_list_r
-#             p += 1
-#     elif mjd_date_PTF_r[i] - mjd_date_PTF_r[i-1] < 100:
-#         r_list.append(PTF_mag_r[i])
-#         r_unc_list.append(PTF_unc_r[i])
-#         mjd_list_r.append(mjd_date_PTF_r[i])
-#         continue
-#     else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-#         r_av_mag.append(np.median(r_list))
-#         r_av_uncs.append(median_abs_deviation(r_list))
-#         mjd_date_r_epoch.append(np.median(mjd_list_r))
-#         if p == m:
-#             one_epoch_r = r_list
-#             one_epoch_r_unc = r_unc_list
-#             one_epoch_r_mjd = mjd_list_r
-#             p += 1
-#         r_list = []
-#         r_unc_list = []
-#         mjd_list_r = []
-#         r_list.append(PTF_mag_r[i])
-#         r_unc_list.append(PTF_unc_r[i])
-#         mjd_list_r.append(mjd_date_PTF_r[i])
-#         p += 1
-#         continue
-
 # # Changing mjd date to days since start:
-# min_mjd = min([mjd_date_PTF_g[0], mjd_date_PTF_r[0], W1_av_mjd_date[0], W2_av_mjd_date[0]])
 min_mjd = min([W1_av_mjd_date[0], W2_av_mjd_date[0]])
 SDSS_mjd = SDSS_mjd - min_mjd
 DESI_mjd = DESI_mjd - min_mjd
-# mjd_date_g_epoch = [date - min_mjd for date in mjd_date_g_epoch]
-# mjd_date_r_epoch = [date - min_mjd for date in mjd_date_r_epoch]
 mjd_value = mjd_value - min_mjd
 W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
 W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
+
+for i in range(len(W1_av_mjd_date)-1):
+    print(f'{i+1}-{i+2} epoch gap, W1 = {W1_av_mjd_date[i+1]-W1_av_mjd_date[i]}')
+for j in range(len(W2_av_mjd_date)-1):
+    print(f'{j+1}-{j+2} epoch gap, W2 = {W2_av_mjd_date[j+1]-W2_av_mjd_date[j]}')
 
 # print(f'Number of MIR W1 epochs = {len(W1_averages)}')
 # print(f'Number of MIR W2 epochs = {len(W2_averages)}')
@@ -755,10 +638,11 @@ W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
 W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
-# g_averages_flux = [flux(mag, g_k, g_wl) for mag in g_av_mag]
-# r_averages_flux = [flux(mag, r_k, r_wl) for mag in r_av_mag]
-# g_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(g_av_uncs, g_averages_flux)]
-# r_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(r_av_uncs, r_averages_flux)]
+
+W1_one_epoch_flux = [flux(mag, W1_k, W1_wl) for mag in one_epoch_W1]
+W2_one_epoch_flux = [flux(mag, W2_k, W2_wl) for mag in one_epoch_W2]
+W1_one_epoch_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(one_epoch_W1_unc, W1_one_epoch_flux)]
+W2_one_epoch_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(one_epoch_W2_unc, W2_one_epoch_flux)]
 
 def find_closest_indices(x_vals, value):
     t = 0  
@@ -782,23 +666,7 @@ before_DESI_index_W1, after_DESI_index_W1, e = find_closest_indices(W1_av_mjd_da
 before_DESI_index_W2, after_DESI_index_W2, r = find_closest_indices(W2_av_mjd_date, DESI_mjd)
 
 if q == 0 and w == 0 and e == 0 and r == 0:
-    if W1_epoch_dps[before_SDSS_index_W1] < min_dps: #Filtering for min dps in all adjactent epochs
-        print(f'Only {W1_epoch_dps[before_SDSS_index_W1]} dps before W1 SDSS')
-    elif W1_epoch_dps[after_SDSS_index_W1] < min_dps:
-        print(f'Only {W1_epoch_dps[after_SDSS_index_W1]} dps after W1 SDSS')
-    elif W1_epoch_dps[before_DESI_index_W1] < min_dps:
-        print(f'Only {W1_epoch_dps[before_DESI_index_W1]} dps before W1 DESI')
-    elif W1_epoch_dps[after_DESI_index_W1] < min_dps:
-        print(f'Only {W1_epoch_dps[after_DESI_index_W1]} dps after W1 DESI')
-    elif W2_epoch_dps[before_SDSS_index_W2] < min_dps:
-        print(f'Only {W2_epoch_dps[before_SDSS_index_W2]} dps before W2 SDSS')
-    elif W2_epoch_dps[after_SDSS_index_W2] < min_dps:
-        print(f'Only {W2_epoch_dps[after_SDSS_index_W2]} dps after W2 SDSS')
-    elif W2_epoch_dps[before_DESI_index_W2] < min_dps:
-        print(f'Only {W2_epoch_dps[before_DESI_index_W2]} dps before W2 DESI')
-    elif W2_epoch_dps[after_DESI_index_W2] < min_dps:
-        print(f'Only {W2_epoch_dps[after_DESI_index_W2]} dps after W2 DESI')
-    
+
     #Linearly interpolating to get interpolated flux on a value in between the data points adjacent to SDSS & DESI.
     W1_SDSS_interp = np.interp(SDSS_mjd, W1_av_mjd_date, W1_averages_flux)
     W2_SDSS_interp = np.interp(SDSS_mjd, W2_av_mjd_date, W2_averages_flux)
@@ -899,6 +767,7 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 
 # # Specifically looking at a particular epoch:
 # # Change 'm = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
+
 # plt.figure(figsize=(12,7))
 # plt.errorbar(one_epoch_r_mjd, one_epoch_r, yerr=one_epoch_r_unc, fmt='o', color='red', capsize=5, label=u'PTF - r band')
 # plt.title(f'r Band Measurements at Epoch {m+1} - {min([mjd_date_g_epoch[0], mjd_date_r_epoch[0]]):.0f} Days Since First WISE Observation', fontsize=16)
@@ -918,20 +787,20 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # data_point_W2 = list(range(1, len(one_epoch_W2) + 1))
 
 # # Plot in the first subplot (ax1)
-# ax1.errorbar(data_point_W1, one_epoch_W1, yerr=one_epoch_W1_unc, fmt='o', color='red', capsize=5, label=u'PTF - r band')
-# ax1.set_title('r band')
-# ax1.set_xlabel('mjd')
+# ax1.errorbar(data_point_W1, W1_one_epoch_flux, yerr=W1_one_epoch_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.set_title('W1')
+# ax1.set_xlabel('Data Point')
 # ax1.set_ylabel('Magnitude')
 # ax1.legend(loc='upper left')
 
 # # Plot in the second subplot (ax2)
-# ax2.errorbar(data_point_W2, one_epoch_W2, yerr=one_epoch_W2_unc, fmt='o', color='green', capsize=5, label=u'PTF - g band')
-# ax2.set_title('g band')
-# ax2.set_xlabel('mjd')
+# ax2.errorbar(data_point_W2, W2_one_epoch_flux, yerr=W2_one_epoch_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+# ax2.set_title('W2')
+# ax2.set_xlabel('Data Point')
 # ax2.set_ylabel('Magnitude')
 # ax2.legend(loc='upper left')
 
-# fig.suptitle(f'g & r band Measurements at Epoch {m+1} - {W1_av_mjd_date[m]:.0f} Days Since First Observation', fontsize=16)
+# fig.suptitle(f'W1 & W2 band Measurements at Epoch {m+1} - {W1_av_mjd_date[m]:.0f} Days Since First Observation', fontsize=16)
 # plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
 # plt.show()
 
@@ -1027,92 +896,92 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # plt.show()
 
 
-# # Making a big figure with flux & SDSS, DESI spectra added in
-# fig = plt.figure(figsize=(12, 7)) # (width, height)
-# gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
+# Making a big figure with flux & SDSS, DESI spectra added in
+fig = plt.figure(figsize=(12, 7)) # (width, height)
+gs = GridSpec(5, 2, figure=fig)  # 5 rows, 2 columns
 
-# common_ymin = 0
-# if len(sdss_flux) > 0 and len(desi_flux) > 0:
-#     common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist()+Gaus_smoothed_DESI.tolist())
-# elif len(sdss_flux) > 0:
-#     common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist())
-# elif len(desi_flux) > 0:
-#     common_ymax = 1.1*max(Gaus_smoothed_DESI.tolist())
-# else:
-#     common_ymax = 0
+common_ymin = 0
+if len(sdss_flux) > 0 and len(desi_flux) > 0:
+    common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist()+Gaus_smoothed_DESI.tolist())
+elif len(sdss_flux) > 0:
+    common_ymax = 1.1*max(Gaus_smoothed_SDSS.tolist())
+elif len(desi_flux) > 0:
+    common_ymax = 1.1*max(Gaus_smoothed_DESI.tolist())
+else:
+    common_ymax = 0
 
-# # Top plot spanning two columns and three rows (ax1)
-# ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
-# ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
-# ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
-# # ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
-# # ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
-# ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
-# ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
-# ax1.set_xlabel('Days since first observation')
-# ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax1.set_title(f'Flux vs Time ({object_name}) - median uncs')
-# ax1.legend(loc='best')
+# Top plot spanning two columns and three rows (ax1)
+ax1 = fig.add_subplot(gs[0:3, :])  # Rows 0 to 2, both columns
+ax1.errorbar(W2_av_mjd_date, W2_averages_flux, yerr=W2_av_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
+ax1.errorbar(W1_av_mjd_date, W1_averages_flux, yerr=W1_av_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
+# ax1.errorbar(mjd_date_r_epoch, r_averages_flux, yerr=r_av_uncs_flux, fmt='o', color='red', capsize=5, label='r Band (616 nm)')
+# ax1.errorbar(mjd_date_g_epoch, g_averages_flux, yerr=g_av_uncs_flux, fmt='o', color='green', capsize=5, label='g Band (467 nm)')
+ax1.axvline(SDSS_mjd, linewidth=2, color='forestgreen', linestyle='--', label='SDSS Observation')
+ax1.axvline(DESI_mjd, linewidth=2, color='midnightblue', linestyle='--', label='DESI Observation')
+ax1.set_xlabel('Days since first observation')
+ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax1.set_title(f'Flux vs Time ({object_name})')
+ax1.legend(loc='best')
 
-# # Bottom left plot spanning 2 rows and 1 column (ax2)
-# ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
-# ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
-# ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
-# if SDSS_min <= H_alpha <= SDSS_max:
-#     ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if SDSS_min <= H_beta <= SDSS_max:
-#     ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-# if SDSS_min <= Mg2 <= SDSS_max:
-#     ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if SDSS_min <= C3_ <= SDSS_max:
-#     ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-# if SDSS_min <= C4 <= SDSS_max:
-#     ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# # if SDSS_min <= _O3_ <= SDSS_max:
-# #     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# if SDSS_min <= Ly_alpha <= SDSS_max:
-#     ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-# if SDSS_min <= Ly_beta <= SDSS_max:
-#     ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-# ax2.set_xlabel('Wavelength / Å')
-# ax2.set_ylim(common_ymin, common_ymax)
-# ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
-# ax2.legend(loc='best')
+# Bottom left plot spanning 2 rows and 1 column (ax2)
+ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
+ax2.plot(sdss_lamb, sdss_flux, alpha=0.2, color='forestgreen')
+ax2.plot(sdss_lamb, Gaus_smoothed_SDSS, color='forestgreen')
+if SDSS_min <= H_alpha <= SDSS_max:
+    ax2.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if SDSS_min <= H_beta <= SDSS_max:
+    ax2.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+if SDSS_min <= Mg2 <= SDSS_max:
+    ax2.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if SDSS_min <= C3_ <= SDSS_max:
+    ax2.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+if SDSS_min <= C4 <= SDSS_max:
+    ax2.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# if SDSS_min <= _O3_ <= SDSS_max:
+#     ax2.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+if SDSS_min <= Ly_alpha <= SDSS_max:
+    ax2.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+if SDSS_min <= Ly_beta <= SDSS_max:
+    ax2.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+ax2.set_xlabel('Wavelength / Å')
+ax2.set_ylim(common_ymin, common_ymax)
+ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax2.set_title('Gaussian Smoothed Plot of SDSS Spectrum')
+ax2.legend(loc='best')
 
-# # Bottom right plot spanning 2 rows and 1 column (ax3)
-# ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
-# ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
-# ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
-# if DESI_min <= H_alpha <= DESI_max:
-#     ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
-# if DESI_min <= H_beta <= DESI_max:
-#     ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
-# if DESI_min <= Mg2 <= DESI_max:
-#     ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
-# if DESI_min <= C3_ <= DESI_max:
-#     ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
-# if DESI_min <= C4 <= DESI_max:
-#     ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
-# # if DESI_min <= _O3_ <= DESI_max:
-# #     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
-# if DESI_min <= Ly_alpha <= DESI_max:
-#     ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
-# if DESI_min <= Ly_beta <= DESI_max:
-#     ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
-# ax3.set_xlabel('Wavelength / Å')
-# ax3.set_ylim(common_ymin, common_ymax)
-# ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
-# ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
-# ax3.legend(loc='best')
+# Bottom right plot spanning 2 rows and 1 column (ax3)
+ax3 = fig.add_subplot(gs[3:, 1])  # Rows 3 to 4, second column
+ax3.plot(desi_lamb, desi_flux, alpha=0.2, color='midnightblue')
+ax3.plot(desi_lamb, Gaus_smoothed_DESI, color='midnightblue')
+if DESI_min <= H_alpha <= DESI_max:
+    ax3.axvline(H_alpha, linewidth=2, color='goldenrod', label = u'H\u03B1')
+if DESI_min <= H_beta <= DESI_max:
+    ax3.axvline(H_beta, linewidth=2, color='springgreen', label = u'H\u03B2')
+if DESI_min <= Mg2 <= DESI_max:
+    ax3.axvline(Mg2, linewidth=2, color='turquoise', label = 'Mg II')
+if DESI_min <= C3_ <= DESI_max:
+    ax3.axvline(C3_, linewidth=2, color='indigo', label = 'C III]')
+if DESI_min <= C4 <= DESI_max:
+    ax3.axvline(C4, linewidth=2, color='violet', label = 'C IV')
+# if DESI_min <= _O3_ <= DESI_max:
+#     ax3.axvline(_O3_, linewidth=2, color='grey', label = '[O III]')
+if DESI_min <= Ly_alpha <= DESI_max:
+    ax3.axvline(Ly_alpha, linewidth=2, color='darkviolet', label = u'Ly\u03B1')
+if DESI_min <= Ly_beta <= DESI_max:
+    ax3.axvline(Ly_beta, linewidth=2, color='purple', label = u'Ly\u03B2')
+ax3.set_xlabel('Wavelength / Å')
+ax3.set_ylim(common_ymin, common_ymax)
+ax3.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$')
+ax3.set_title('Gaussian Smoothed Plot of DESI Spectrum')
+ax3.legend(loc='best')
 
-# fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
-# #top and bottom adjust the vertical space on the top and bottom of the figure.
-# #left and right adjust the horizontal space on the left and right sides.
-# #hspace and wspace adjust the spacing between rows and columns, respectively.
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wspace=0.2)
+#top and bottom adjust the vertical space on the top and bottom of the figure.
+#left and right adjust the horizontal space on the left and right sides.
+#hspace and wspace adjust the spacing between rows and columns, respectively.
 
-# # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
-# plt.show()
+# fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
+plt.show()
 
 # #Quantifying change data
 # CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR.csv')
@@ -1158,7 +1027,7 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # ax1.set_ylabel('Frequency')
 # ax1.legend(loc='upper right')
 
-# norm_flux_change_binsize = 0.05
+# norm_flux_change_binsize = 0.10
 # # #CLAGN
 # bins_norm_flux_change = np.arange(0, max(CLAGN_norm_flux_change)+norm_flux_change_binsize, norm_flux_change_binsize)
 # ax2.hist(CLAGN_norm_flux_change, bins=bins_norm_flux_change, color='blue', edgecolor='black', label=f'binsize = {norm_flux_change_binsize}')
@@ -1187,10 +1056,10 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # # plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, color='blue', label='Parent Sample AGN')
 # plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label=u'3\u03C3 significance')
 # plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
-# # plt.xlim(0, 45)
-# # plt.ylim(0, 1.5)
-# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
-# plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
+# plt.xlim(0, 45)
+# plt.ylim(0, 3)
+# # plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+# # plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
 # plt.xlabel("Z Score")
 # plt.ylabel("Normalised Flux Change")
 # plt.title("Quantifying MIR Variability in AGN")

@@ -5,12 +5,11 @@ from requests.exceptions import ConnectTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 client = SparclClient(connect_timeout=10)
-inc = client.get_all_fields()
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
 def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum    
     try:
-        res = client.retrieve_by_specid(specid_list=[int(specid)], include=inc, dataset_list=['DESI-EDR'])
+        res = client.retrieve_by_specid(specid_list=[int(specid)], include=['specprimary'], dataset_list=['DESI-EDR'])
 
         records = res.records
 

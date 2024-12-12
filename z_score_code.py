@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 from scipy.interpolate import interp1d
+from scipy.stats import median_abs_deviation
 from astropy.io import fits
 from astropy import units as u #In Astropy, a Quantity object combines a numerical value (like a 1D array of flux) with a physical unit (like W/m^2, erg/s, etc.)
 from astropy.convolution import convolve, Gaussian1DKernel
@@ -11,7 +12,6 @@ from astroquery.ipac.irsa import Irsa
 from astropy.io.fits.hdu.hdulist import HDUList
 from astroquery.sdss import SDSS
 from sparcl.client import SparclClient
-from dl import queryClient as qc
 import sfdmap
 from dust_extinction.parameter_averages import G23
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
@@ -19,13 +19,10 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 c = 299792458
 client = SparclClient(connect_timeout=10)
 
-parent_sample = pd.read_csv('guo23_parent_sample.csv')
-parent_sample = parent_sample.iloc[:, 1:] #drop the first column (the index)
-columns_to_check = parent_sample.columns[[3, 5, 11]] #removing duplicates where SDSS name, SDSS mjd & DESI mjd all the same
-parent_sample = parent_sample.drop_duplicates(subset=columns_to_check)
+parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
+Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 # object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 #random list of object names taken from parent catalogue
@@ -103,7 +100,7 @@ elif Min_SNR == 2:
 else:
     print('select a valid min SNR - 10, 3 or 2.')
 
-max_day_gap = 200 #max day gap to linearly interpolate over
+max_day_gap = 250 #max day gap to linearly interpolate over. 250 because quite often the gap between WISE observations is about 210 days.
 
 def find_closest_indices(x_vals, value):
     t = 0
@@ -223,7 +220,7 @@ for object_name in object_names:
     filtered_WISE_rows = WISE_data[(WISE_data.iloc[:, 6] == 0) & (WISE_data.iloc[:, 39] == 1) & (WISE_data.iloc[:, 41] == '0000') & (WISE_data.iloc[:, 40] > 5)]
     #filtering for cc_flags == 0 in all bands, qi_fact == 1, no moon masking flag & separation of the WISE instrument to the SAA > 5 degrees. Unlike with Neowise, there is no individual column for cc_flags in each band
 
-    filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 36] > 5) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qual_frame is > 5 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
+    filtered_NEO_rows = NEO_data[(NEO_data.iloc[:, 37] == 1) & (NEO_data.iloc[:, 38] > 5)] #checking for rows where qi_fact == 1 & separation of the WISE instrument to the South Atlantic Anomaly is > 5 degrees
     #"Single-exposure source database entries having qual_frame=0 should be used with extreme caution" - from the column descriptions.
     # The qi_fact column seems to be equal to qual_frame/10.
 
@@ -280,7 +277,10 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 W1_averages.append(np.median(W1_list))
                 W1_av_mjd_date.append(np.median(W1_mjds))
-                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                if len(W1_list) > 1:
+                    W1_av_uncs.append(median_abs_deviation(W1_list))
+                else:
+                    W1_av_uncs.append(W1_unc_list[0])
                 W1_epoch_dps.append(len(W1_list))
                 continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
@@ -291,7 +291,10 @@ for object_name in object_names:
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                 W1_averages.append(np.median(W1_list))
                 W1_av_mjd_date.append(np.median(W1_mjds))
-                W1_av_uncs.append((1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))))
+                if len(W1_list) > 1:
+                    W1_av_uncs.append(median_abs_deviation(W1_list))
+                else:
+                    W1_av_uncs.append(W1_unc_list[0])
                 W1_epoch_dps.append(len(W1_list))
                 W1_list = []
                 W1_mjds = []
@@ -327,7 +330,10 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 W2_averages.append(np.median(W2_list))
                 W2_av_mjd_date.append(np.median(W2_mjds))
-                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                if len(W2_list) > 1:
+                    W2_av_uncs.append(median_abs_deviation(W2_list))
+                else:
+                    W2_av_uncs.append(W2_unc_list[0])
                 W2_epoch_dps.append(len(W2_list))
                 continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
@@ -338,7 +344,10 @@ for object_name in object_names:
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
                 W2_averages.append(np.median(W2_list))
                 W2_av_mjd_date.append(np.median(W2_mjds))
-                W2_av_uncs.append((1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))))
+                if len(W2_list) > 1:
+                    W2_av_uncs.append(median_abs_deviation(W2_list))
+                else:
+                    W2_av_uncs.append(W2_unc_list[0])
                 W2_epoch_dps.append(len(W2_list))
                 W2_list = []
                 W2_mjds = []
@@ -471,10 +480,11 @@ for object_name in object_names:
     desi_flux = desi_flux/ext_model.extinguish(inverse_DESI_lamb, Ebv=ebv)
 
     # #Only for CLAGN
-    # object_row = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
-    # redshift = object_row.iloc[0, 3]
-    # SDSS_z = redshift
-    # DESI_z = redshift
+    if object_name in Guo_table4.iloc[:, 0].values:
+        object_row = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+        redshift = object_row.iloc[0, 3]
+        SDSS_z = redshift
+        DESI_z = redshift
 
     sdss_lamb = (sdss_lamb/(1+SDSS_z))
     desi_lamb = (desi_lamb/(1+DESI_z))
