@@ -15,6 +15,7 @@ from dust_extinction.parameter_averages import G23
 from astropy.io.fits.hdu.hdulist import HDUList
 from astroquery.sdss import SDSS
 from sparcl.client import SparclClient
+from requests.exceptions import ConnectTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 c = 299792458
@@ -26,7 +27,7 @@ c = 299792458
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
 # object_name = '152517.57+401357.6' #Object A - assigned to me
-object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
+# object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chose an AGN, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
 # object_name = '162106.25+371950.7' #Object E - chosen because of very low z scores
@@ -38,7 +39,7 @@ object_name = '141923.44-030458.7' #Object B - chosen because of very high redsh
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
-# object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
+object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
 # object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
 # object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
 # object_name = '164331.90+304835.5' #Object N - chosen due to enourmous Z score (120)
@@ -132,12 +133,10 @@ else:
 
 client = SparclClient(connect_timeout=10)
 
-inc = client.get_all_fields()
-
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
 def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
     
-    res = client.retrieve_by_specid(specid_list=[specid], include=inc, dataset_list=['DESI-EDR'])
+    res = client.retrieve_by_specid(specid_list=[specid], include=['specprimary', 'wavelength', 'flux'], dataset_list=['DESI-EDR'])
 
     records = res.records
 
@@ -686,12 +685,14 @@ if q == 0 and w == 0 and e == 0 and r == 0:
     W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
     #uncertainty in normalised flux change
-    W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
-    W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-    W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
-    W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
-    W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-    W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
+    W1_second_smallest = sorted(W1_averages_flux)[1]
+    W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+    W1_abs_norm = ((W1_abs)/(W1_second_smallest)) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+    W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(W1_second_smallest))**2)
+    W2_second_smallest = sorted(W2_averages_flux)[1]
+    W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+    W2_abs_norm = ((W2_abs)/(W2_second_smallest)) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
+    W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(W2_second_smallest))**2)
 
     #uncertainty in z score
     W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
@@ -983,32 +984,31 @@ fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wsp
 # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-# #Quantifying change data
-# CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR.csv')
-# CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 19].tolist()  # 20th column, skipping the first row (header)
-# CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 20].tolist()
-# CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 21].tolist()
-# CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 22].tolist()
-# # CLAGN_mean_optical_flux_change = CLAGN_quantifying_change_data.iloc[1:, 31].tolist()
+#Quantifying change data
+CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR.csv')
+CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 17].tolist()  # 16th column, skipping the first row (header)
+CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 18].tolist()
+CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 19].tolist()
+CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 20].tolist()
 
-# AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR.csv')
-# AGN_zscores = AGN_quantifying_change_data.iloc[1:, 19].tolist()
-# AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 20].tolist()
-# AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 21].tolist()
-# AGN_norm_flux_change_unc = AGN_quantifying_change_data.iloc[1:, 22].tolist()
+AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR.csv')
+AGN_zscores = AGN_quantifying_change_data.iloc[1:, 17].tolist()
+AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 18].tolist()
+AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 19].tolist()
+AGN_norm_flux_change_unc = AGN_quantifying_change_data.iloc[1:, 20].tolist()
 
-# #want the median value of the random sample of AGN
-# median_norm_flux_change = np.nanmedian(AGN_norm_flux_change)
-# median_norm_flux_change_unc = np.nanmedian(AGN_norm_flux_change_unc)
-# three_sigma_norm_flux_change = median_norm_flux_change + 3*median_norm_flux_change_unc
-# median_zscore = np.nanmedian(AGN_zscores)
-# median_zscore_unc = np.nanmedian(AGN_zscore_uncs)
-# three_sigma_zscore = median_zscore + 3*median_zscore_unc
-# print(f'3\u03C3 significance for norm flux change = {three_sigma_norm_flux_change}')
-# print(f'3\u03C3 significance for z score = {three_sigma_zscore}')
+#want the median value of the random sample of AGN
+median_norm_flux_change = np.nanmedian(AGN_norm_flux_change)
+median_norm_flux_change_unc = np.nanmedian(AGN_norm_flux_change_unc)
+three_sigma_norm_flux_change = median_norm_flux_change + 3*median_norm_flux_change_unc
+median_zscore = np.nanmedian(AGN_zscores)
+median_zscore_unc = np.nanmedian(AGN_zscore_uncs)
+three_sigma_zscore = median_zscore + 3*median_zscore_unc
+print(f'3\u03C3 significance for norm flux change = {three_sigma_norm_flux_change}')
+print(f'3\u03C3 significance for z score = {three_sigma_zscore}')
 
-# median_norm_flux_change_CLAGN = np.nanmedian(CLAGN_norm_flux_change)
-# median_zscore_CLAGN = np.nanmedian(CLAGN_zscores)
+median_norm_flux_change_CLAGN = np.nanmedian(CLAGN_norm_flux_change)
+median_zscore_CLAGN = np.nanmedian(CLAGN_zscores)
 
 
 # # A histogram of z score values & normalised flux change values
@@ -1048,22 +1048,22 @@ plt.show()
 # plt.show()
 
 
-# # # #Creating a 2d plot for normalised flux change & z score:
-# plt.figure(figsize=(7, 7)) #square figure
-# plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Parent Sample AGN')
-# plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='Guo CLAGN')
-# # plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, color='red',  label='Guo CLAGN')
-# # plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, color='blue', label='Parent Sample AGN')
-# plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label=u'3\u03C3 significance')
-# plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
-# plt.xlim(0, 45)
+# # #Creating a 2d plot for normalised flux change & z score:
+plt.figure(figsize=(7, 7)) #square figure
+plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Parent Sample AGN')
+plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='Guo CLAGN')
+# plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, color='red',  label='Guo CLAGN')
+# plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, color='blue', label='Parent Sample AGN')
+plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label=u'3\u03C3 significance')
+plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
+plt.xlim(0, 100)
 # plt.ylim(0, 3)
-# # plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
-# # plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
-# plt.xlabel("Z Score")
-# plt.ylabel("Normalised Flux Change")
-# plt.title("Quantifying MIR Variability in AGN")
-# plt.legend(loc = 'best')
-# plt.grid(True, linestyle='--', alpha=0.5)
-# plt.tight_layout()
-# plt.show()
+# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
+plt.xlabel("Z Score")
+plt.ylabel("Normalised Flux Change")
+plt.title("Quantifying MIR Variability in AGN")
+plt.legend(loc = 'best')
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()

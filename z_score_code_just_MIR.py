@@ -11,10 +11,10 @@ parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from parent sample
+# object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -248,9 +248,10 @@ for object_name in object_names:
             W1_abs_unc = np.sqrt(W1_av_uncs_flux[W1_max_index]**2 + W1_av_uncs_flux[W1_min_index]**2)
 
             #uncertainty in normalised flux change
-            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
-            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
+            W1_second_smallest = sorted(W1_averages_flux)[1]
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+            W1_abs_norm = ((W1_abs)/(W1_second_smallest))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(W1_second_smallest))**2)
 
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
@@ -275,9 +276,10 @@ for object_name in object_names:
             W2_abs = abs(W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])
             W2_abs_unc = np.sqrt(W2_av_uncs_flux[W2_max_index]**2 + W2_av_uncs_flux[W2_min_index]**2)
 
-            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
-            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
+            W2_second_smallest = sorted(W2_averages_flux)[1]
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+            W2_abs_norm = ((W2_abs)/(W2_second_smallest))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(W2_second_smallest))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
             W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
@@ -344,10 +346,11 @@ for object_name in object_names:
             W1_abs = abs(W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])
             W1_abs_unc = np.sqrt(W1_av_uncs_flux[W1_max_index]**2 + W1_av_uncs_flux[W1_min_index]**2)
 
-            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
-            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
-
+            W1_second_smallest = sorted(W1_averages_flux)[1]
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+            W1_abs_norm = ((W1_abs)/(W1_second_smallest))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(W1_second_smallest))**2)
+            
             #uncertainty in z score
             W1_z_score_max = (W1_averages_flux[W1_max_index]-W1_averages_flux[W1_min_index])/(W1_av_uncs_flux[W1_max_index])
             W1_z_score_max_unc = abs(W1_z_score_max*((W1_abs_unc)/(W1_abs)))
@@ -447,9 +450,10 @@ for object_name in object_names:
             W2_abs = abs(W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])
             W2_abs_unc = np.sqrt(W2_av_uncs_flux[W2_max_index]**2 + W2_av_uncs_flux[W2_min_index]**2)
 
-            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
-            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
+            W2_second_smallest = sorted(W2_averages_flux)[1]
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+            W2_abs_norm = ((W2_abs)/(W2_second_smallest))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(W2_second_smallest))**2)
 
             W2_z_score_max = (W2_averages_flux[W2_max_index]-W2_averages_flux[W2_min_index])/(W2_av_uncs_flux[W2_max_index])
             W2_z_score_max_unc = abs(W2_z_score_max*((W2_abs_unc)/(W2_abs)))
@@ -524,14 +528,13 @@ quantifying_change_data = {
     "W2 Normalised Flux Change": W2_abs_change_norm, #15
     "W2 Normalised Flux Change Unc": W2_abs_change_norm_unc, #16
 
-    "W1 Gap": W1_gap, #17
-    "W2 Gap": W2_gap, #18
+    "Mean Z Score": mean_zscore, #17
+    "Mean Z Score Unc": mean_zscore_unc, #18
+    "Mean Normalised Flux Change": mean_norm_flux_change, #19
+    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #20
 
-    "Mean Z Score": mean_zscore, #19
-    "Mean Z Score Unc": mean_zscore_unc, #20
-    "Mean Normalised Flux Change": mean_norm_flux_change, #21
-    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #22
-
+    "W1 Gap": W1_gap, #21
+    "W2 Gap": W2_gap, #22
     "SDSS Redshift": SDSS_redshifts, #23
     "DESI Redshift": DESI_redshifts, #24
 }
@@ -540,5 +543,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-# df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
-df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
+df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
+# df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)

@@ -6,7 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 
 client = SparclClient(connect_timeout=10)
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
 def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum    
     try:
         res = client.retrieve_by_specid(specid_list=[int(specid)], include=['specprimary'], dataset_list=['DESI-EDR'])
@@ -23,16 +23,16 @@ def get_primary_spectrum(specid): #some objects have multiple spectra for it in 
         
         return 1
 
-    except ConnectTimeout as e:
-            temp_save = guo_parent[guo_parent['keep'] == 1]
+    except (ConnectTimeout, TimeoutError, ConnectionError) as e:
+        temp_save = guo_parent[guo_parent['keep'] == 1]
 
-            temp_save = temp_save.drop(columns=['keep'])
+        temp_save = temp_save.drop(columns=['keep'])
 
-            temp_save.to_csv('temp_sample.csv', index=False)
+        temp_save.to_csv('temp_sample.csv', index=False)
 
-            print(f"Connection timeout: {e}")
-            print('Temporary save to temp_sample.csv successful')
-            raise ConnectTimeout
+        print(f"Connection timeout: {e}")
+        print('Temporary save to temp_sample.csv successful')
+        raise ConnectTimeout
     
 # Step 1: Read the CSV file
 guo_parent = pd.read_csv('guo23_parent_sample_no_duplicates.csv')

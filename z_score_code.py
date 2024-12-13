@@ -14,6 +14,7 @@ from astroquery.sdss import SDSS
 from sparcl.client import SparclClient
 import sfdmap
 from dust_extinction.parameter_averages import G23
+from requests.exceptions import ConnectTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 c = 299792458
@@ -136,12 +137,51 @@ def find_closest_indices(x_vals, value):
                 else:
                     t += 1
             return before_index, after_index, t, ninety_first, ninety_last, ninety_before, ninety_after
+        
+#SDSS spectrum retrieval method
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
+def get_primary_SDSS_spectrum(SDSS_plate_number, SDSS_fiberid_number, SDSS_mjd, coord, SDSS_plate, SDSS_fiberid):
+    downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
+    if downloaded_SDSS_spec == None:
+        downloaded_SDSS_spec = SDSS.get_spectra_async(coordinates=coord, radius=2. * u.arcsec)
+        if downloaded_SDSS_spec == None:
+            print(f'SDSS Spectrum cannot be found for object_name = {object_name}')
+            try:
+                SDSS_file = f'spec-{SDSS_plate}-{SDSS_mjd:.0f}-{SDSS_fiberid}.fits'
+                SDSS_file_path = f'clagn_spectra/{SDSS_file}'
+                with fits.open(SDSS_file_path) as hdul:
+                    subset = hdul[1]
+
+                    sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+                    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+                    print('SDSS file is in downloads - will proceed as normal')
+                    return sdss_lamb, sdss_flux
+            except FileNotFoundError as e:
+                print('No SDSS file already downloaded.')
+                sdss_flux = []
+                sdss_lamb = []
+                return sdss_lamb, sdss_flux
+        else:
+            downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+            hdul = HDUList(downloaded_SDSS_spec.get_fits())
+            subset = hdul[1]
+
+            sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+            sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+            return sdss_lamb, sdss_flux
+    else:
+        downloaded_SDSS_spec = downloaded_SDSS_spec[0]
+        hdul = HDUList(downloaded_SDSS_spec.get_fits())
+        subset = hdul[1]
+
+        sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
+        sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
+        return sdss_lamb, sdss_flux
             
 #DESI spectrum retrieval method
-inc = client.get_all_fields()
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type(ConnectionError))
-def get_primary_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
-    res = client.retrieve_by_specid(specid_list=[targetid], include=inc, dataset_list=['DESI-EDR'])
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
+def get_primary_DESI_spectrum(targetid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+    res = client.retrieve_by_specid(specid_list=[targetid], include=['specprimary', 'wavelength', 'flux'], dataset_list=['DESI-EDR'])
 
     records = res.records
 
@@ -433,45 +473,9 @@ for object_name in object_names:
     DESI_z = object_data.iloc[0, 9]
     DESI_name = object_data.iloc[0, 10]
 
-    #Automatically querying the SDSS database
-    downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
-    if downloaded_SDSS_spec == None:
-        downloaded_SDSS_spec = SDSS.get_spectra_async(coordinates=coord, radius=2. * u.arcsec)
-        if downloaded_SDSS_spec == None:
-            print(f'SDSS Spectrum cannot be found for object_name = {object_name}')
-            try:
-                SDSS_file = f'spec-{SDSS_plate}-{SDSS_mjd:.0f}-{SDSS_fiberid}.fits'
-                SDSS_file_path = f'clagn_spectra/{SDSS_file}'
-                with fits.open(SDSS_file_path) as hdul:
-                    subset = hdul[1]
-
-                    sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-                    sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
-                    sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
-                    print('SDSS file is in downloads - will proceed as normal')
-            except FileNotFoundError as e:
-                print('No SDSS file already downloaded.')
-                sdss_flux = []
-                sdss_lamb = []
-        else:
-            downloaded_SDSS_spec = downloaded_SDSS_spec[0]
-            hdul = HDUList(downloaded_SDSS_spec.get_fits())
-            subset = hdul[1]
-
-            sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-            sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
-            sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
-    else:
-        downloaded_SDSS_spec = downloaded_SDSS_spec[0]
-        hdul = HDUList(downloaded_SDSS_spec.get_fits())
-        subset = hdul[1]
-
-        sdss_flux = subset.data['flux'] # 10-17 ergs/s/cm2/Å
-        sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
-        sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
-
-    target_id = int(DESI_name)
-    desi_lamb, desi_flux = get_primary_spectrum(target_id)
+    #Automatically getting SDSS & DESI spectra
+    sdss_lamb, sdss_flux = get_primary_SDSS_spectrum(SDSS_plate_number, SDSS_fiberid_number, SDSS_mjd_for_dnl, coord, SDSS_plate, SDSS_fiberid)
+    desi_lamb, desi_flux = get_primary_DESI_spectrum(int(DESI_name))
 
     ebv = sfd.ebv(coord)
     inverse_SDSS_lamb = [1/(x*10**(-4)) for x in sdss_lamb] #need units of inverse microns for extinguishing
@@ -557,9 +561,10 @@ for object_name in object_names:
             W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
 
             #uncertainty in normalised flux change
-            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
-            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
+            W1_second_smallest = sorted(W1_averages_flux)[1]
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+            W1_abs_norm = ((W1_abs)/(W1_second_smallest))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(W1_second_smallest))**2)
 
             #uncertainty in z score
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
@@ -621,9 +626,10 @@ for object_name in object_names:
             W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
             W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
-            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
-            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
+            W2_second_smallest = sorted(W2_averages_flux)[1]
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+            W2_abs_norm = ((W2_abs)/(W2_second_smallest))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(W2_second_smallest))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
             W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
@@ -832,9 +838,10 @@ for object_name in object_names:
             W1_abs = abs(W1_SDSS_interp-W1_DESI_interp)
             W1_abs_unc = np.sqrt(W1_SDSS_unc_interp**2 + W1_DESI_unc_interp**2)
 
-            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(sorted(W1_averages_flux)[1])]
-            W1_abs_norm = ((W1_abs)/(sorted(W1_averages_flux)[1]))
-            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(sorted(W1_averages_flux)[1]))**2)
+            W1_second_smallest = sorted(W1_averages_flux)[1]
+            W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+            W1_abs_norm = ((W1_abs)/(W1_second_smallest))
+            W1_abs_norm_unc = W1_abs_norm*np.sqrt(((W1_abs_unc)/(W1_abs))**2 + ((W1_second_smallest_unc)/(W1_second_smallest))**2)
 
             W1_z_score_SDSS_DESI = (W1_SDSS_interp-W1_DESI_interp)/(W1_DESI_unc_interp)
             W1_z_score_SDSS_DESI_unc = abs(W1_z_score_SDSS_DESI*((W1_abs_unc)/(W1_abs)))
@@ -1026,9 +1033,10 @@ for object_name in object_names:
             W2_abs = abs(W2_SDSS_interp-W2_DESI_interp)
             W2_abs_unc = np.sqrt(W2_SDSS_unc_interp**2 + W2_DESI_unc_interp**2)
 
-            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(sorted(W2_averages_flux)[1])]
-            W2_abs_norm = ((W2_abs)/(sorted(W2_averages_flux)[1])) #normalise by 2nd smallest flux reading (want to normalise by a background value in the off state)
-            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(sorted(W2_averages_flux)[1]))**2)
+            W2_second_smallest = sorted(W2_averages_flux)[1]
+            W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+            W2_abs_norm = ((W2_abs)/(W2_second_smallest))
+            W2_abs_norm_unc = W2_abs_norm*np.sqrt(((W2_abs_unc)/(W2_abs))**2 + ((W2_second_smallest_unc)/(W2_second_smallest))**2)
 
             W2_z_score_SDSS_DESI = (W2_SDSS_interp-W2_DESI_interp)/(W2_DESI_unc_interp)
             W2_z_score_SDSS_DESI_unc = abs(W2_z_score_SDSS_DESI*((W2_abs_unc)/(W2_abs)))
@@ -1135,27 +1143,28 @@ quantifying_change_data = {
     "W2 Normalised Flux Change": W2_abs_change_norm, #15
     "W2 Normalised Flux Change Unc": W2_abs_change_norm_unc, #16
 
-    "W1 before SDSS Epoch DPs": W1_SDSS_bef_dps, #17
-    "W1 after SDSS Epoch DPs": W1_SDSS_aft_dps, #18
-    "W1 before DESI Epoch DPs": W1_DESI_bef_dps, #19
-    "W1 after DESI Epoch DPs": W1_DESI_aft_dps, #20
-    "W2 before SDSS Epoch DPs": W2_SDSS_bef_dps, #21
-    "W2 after SDSS Epoch DPs": W2_SDSS_aft_dps, #22
-    "W2 before DESI Epoch DPs": W2_DESI_bef_dps, #23
-    "W2 after DESI Epoch DPs": W2_DESI_aft_dps, #24
+    "Mean Z Score": mean_zscore, #17
+    "Mean Z Score Unc": mean_zscore_unc, #18
+    "Mean Normalised Flux Change": mean_norm_flux_change, #19
+    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #20
 
-    "W1 SDSS Gap": W1_SDSS_gap, #25
-    "W1 DESI Gap": W1_DESI_gap, #26
-    "W2 SDSS Gap": W2_SDSS_gap, #27
-    "W2 DESI Gap": W2_DESI_gap, #28
+    "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #21
+    "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #22
 
-    "Mean Z Score": mean_zscore, #29
-    "Mean Z Score Unc": mean_zscore_unc, #30
-    "Mean Normalised Flux Change": mean_norm_flux_change, #31
-    "Mean Normalised Flux Change Unc": mean_norm_flux_change_unc, #32
+    "W1 before SDSS Epoch DPs": W1_SDSS_bef_dps, #23
+    "W1 after SDSS Epoch DPs": W1_SDSS_aft_dps, #24
+    "W1 before DESI Epoch DPs": W1_DESI_bef_dps, #25
+    "W1 after DESI Epoch DPs": W1_DESI_aft_dps, #26
+    "W2 before SDSS Epoch DPs": W2_SDSS_bef_dps, #27
+    "W2 after SDSS Epoch DPs": W2_SDSS_aft_dps, #28
+    "W2 before DESI Epoch DPs": W2_DESI_bef_dps, #29
+    "W2 after DESI Epoch DPs": W2_DESI_aft_dps, #30
 
-    "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #33
-    "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #34
+    "W1 SDSS Gap": W1_SDSS_gap, #31
+    "W1 DESI Gap": W1_DESI_gap, #32
+    "W2 SDSS Gap": W2_SDSS_gap, #33
+    "W2 DESI Gap": W2_DESI_gap, #34
+
     "SDSS Redshift": SDSS_redshifts, #35
     "DESI Redshift": DESI_redshifts, #36
 
