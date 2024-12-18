@@ -7,14 +7,14 @@ from astroquery.ipac.irsa import Irsa
 
 c = 299792458
 
-parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
+parent_sample = pd.read_csv('clean_parent_sample.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from parent sample
+object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -543,5 +543,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
-# df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
+df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
