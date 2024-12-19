@@ -7,7 +7,7 @@ from astroquery.ipac.irsa import Irsa
 
 c = 299792458
 
-parent_sample = pd.read_csv('clean_parent_sample.csv')
+parent_sample = pd.read_csv('clean_parent_sample_no_CLAGN.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
@@ -70,9 +70,19 @@ for object_name in object_names:
     print(g)
     print(object_name)
     g += 1
+    #For AGN:
     object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
     SDSS_RA = object_data.iloc[0, 0]
     SDSS_DEC = object_data.iloc[0, 1]
+    SDSS_z = object_data.iloc[0, 2]
+    DESI_z = object_data.iloc[0, 9]
+
+    # #For CLAGN:
+    # object_data = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+    # SDSS_RA = object_data.iloc[0, 1]
+    # SDSS_DEC = object_data.iloc[0, 2]
+    # SDSS_z = object_data.iloc[0, 3]
+    # DESI_z = object_data.iloc[0, 3]
 
     # Automatically querying catalogues
     coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
@@ -140,10 +150,11 @@ for object_name in object_names:
                 W1_list.append(W1_mag[i][0])
                 W1_mjds.append(W1_mag[i][1])
                 W1_unc_list.append(W1_mag[i][2])
-                if len(W1_list) > 1:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
-                else:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                # if len(W1_list) > 1:
+                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                # else:
+                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
@@ -151,10 +162,11 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                if len(W1_list) > 1:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
-                else:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                # if len(W1_list) > 1:
+                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                # else:
+                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 W1_list = []
                 W1_mjds = []
                 W1_unc_list = []
@@ -182,10 +194,11 @@ for object_name in object_names:
                 W2_list.append(W2_mag[i][0])
                 W2_mjds.append(W2_mag[i][1])
                 W2_unc_list.append(W2_mag[i][2])
-                if len(W2_list) > 1:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
-                else:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                # if len(W2_list) > 1:
+                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                # else:
+                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
@@ -193,10 +206,11 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                if len(W2_list) > 1:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
-                else:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                # if len(W2_list) > 1:
+                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                # else:
+                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 W2_list = []
                 W2_mjds = []
                 W2_unc_list = []
@@ -219,9 +233,6 @@ for object_name in object_names:
     if m == 1 and n == 1:
         print('Bad W1 & W2 data')
         continue
-
-    SDSS_z = object_data.iloc[0, 2]
-    DESI_z = object_data.iloc[0, 9]
 
     if m == 0: #Good W1 if true
         if n == 0: #Good W2 if true
@@ -297,22 +308,22 @@ for object_name in object_names:
 
             W2_gap.append(abs(W2_av_mjd_date[W2_max_index] - W2_av_mjd_date[W2_min_index]))
 
-            zscores = np.sort([W1_z_score_max, W1_z_score_min, W2_z_score_max, W2_z_score_min]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W1_z_score_max), abs(W1_z_score_min), abs(W2_z_score_max), abs(W2_z_score_min)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_max_unc, W1_z_score_min_unc, W2_z_score_max_unc, W2_z_score_min_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
             
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -384,22 +395,22 @@ for object_name in object_names:
 
             W2_gap.append(np.nan)
 
-            zscores = np.sort([W1_z_score_max, W1_z_score_min, W2_z_score_max, W2_z_score_min]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W1_z_score_max), abs(W1_z_score_min), abs(W2_z_score_max), abs(W2_z_score_min)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_max_unc, W1_z_score_min_unc, W2_z_score_max_unc, W2_z_score_min_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -471,22 +482,22 @@ for object_name in object_names:
 
             W2_gap.append(abs(W2_av_mjd_date[W2_max_index] - W2_av_mjd_date[W2_min_index]))
 
-            zscores = np.sort([W1_z_score_max, W1_z_score_min, W2_z_score_max, W2_z_score_min]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W1_z_score_max), abs(W1_z_score_min), abs(W2_z_score_max), abs(W2_z_score_min)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_max_unc, W1_z_score_min_unc, W2_z_score_max_unc, W2_z_score_min_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
             
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -543,5 +554,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-# df.to_csv("CLAGN_Quantifying_Change_just_MIR.csv", index=False)
-df.to_csv("AGN_Quantifying_Change_just_MIR.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change_just_MIR_mean_uncs.csv", index=False)
+df.to_csv("AGN_Quantifying_Change_just_MIR_mean_uncs.csv", index=False)

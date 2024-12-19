@@ -20,25 +20,14 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 c = 299792458
 client = SparclClient(connect_timeout=10)
 
-parent_sample = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
+parent_sample = pd.read_csv('clean_parent_sample_no_CLAGN.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
 # object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
-#random list of object names taken from parent catalogue
-object_names = ['085817.56+322349.7', '130115.40+252726.3', '101834.35+331258.9', '150210.72+522212.2', '121001.83+565716.7', '125453.81+291114.8', '160730.54+491932.4',
-                '142214.08+531516.7', '163639.06+320400.0', '113535.74+533407.4', '141546.75-005604.2', '145206.22+331626.7', '222135.24+253943.1', '154059.00+401232.1',
-                '135544.25+531805.2', '141758.85+324559.2', '141543.55+351620.1', '222831.07+274417.7', '223853.08+295530.5', '133948.78+013304.0', '161540.52+325720.1',
-                '150717.25+255144.6', '144952.01+333031.6', '145806.56+355911.2', '164837.68+311652.7', '170809.44+211519.9', '211104.31-000747.3', '170254.81+244617.2',
-                '161249.28+312523.0', '160524.52+303246.6', '154942.78+294506.1', '151639.06+280520.4', '122118.05+553355.8', '165335.83+354855.3', '165533.47+354942.7',
-                '115625.26+270312.0', '120432.68+531311.1', '124151.80+534351.3', '122702.40+550531.9', '112838.87+501333.6', '142349.72+523903.6', '160833.97+421413.4',
-                '153849.63+440637.7', '013620.77+301949.3', '134003.80+312424.5', '141956.38+510244.3', '023324.70-012819.6', '115837.97+001758.7', '122737.44+310439.5',
-                '122256.17+555533.3']
-
-# #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# object_names = parent_sample.iloc[:, 4].sample(n=400, random_state=42) #randomly selecting 250 object names from parent sample
-#Need some way of error handling the timeout when pulling SDSS & DESI spectra from online.
+#When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
+object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -62,10 +51,6 @@ W1_abs_change = []
 W1_abs_change_unc = []
 W1_abs_change_norm = []
 W1_abs_change_norm_unc = []
-W1_SDSS_bef_dps = []
-W1_SDSS_aft_dps = []
-W1_DESI_bef_dps = []
-W1_DESI_aft_dps = []
 W1_SDSS_gap = []
 W1_DESI_gap = []
 
@@ -77,10 +62,6 @@ W2_abs_change = []
 W2_abs_change_unc = []
 W2_abs_change_norm = []
 W2_abs_change_norm_unc = []
-W2_SDSS_bef_dps = []
-W2_SDSS_aft_dps = []
-W2_DESI_bef_dps = []
-W2_DESI_aft_dps = []
 W2_SDSS_gap = []
 W2_DESI_gap = []
 
@@ -304,7 +285,6 @@ for object_name in object_names:
         W1_averages= []
         W1_av_uncs = []
         W1_av_mjd_date = []
-        W1_epoch_dps = []  
         for i in range(len(W1_mag)):
             if i == 0: #first reading - store and move on
                 W1_list.append(W1_mag[i][0])
@@ -321,7 +301,6 @@ for object_name in object_names:
                     W1_av_uncs.append(median_abs_deviation(W1_list))
                 else:
                     W1_av_uncs.append(W1_unc_list[0])
-                W1_epoch_dps.append(len(W1_list))
                 continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
@@ -335,7 +314,6 @@ for object_name in object_names:
                     W1_av_uncs.append(median_abs_deviation(W1_list))
                 else:
                     W1_av_uncs.append(W1_unc_list[0])
-                W1_epoch_dps.append(len(W1_list))
                 W1_list = []
                 W1_mjds = []
                 W1_unc_list = []
@@ -347,7 +325,6 @@ for object_name in object_names:
         W1_averages = []
         W1_av_mjd_date = []
         W1_av_uncs = []
-        W1_epoch_dps = []
 
     if len(W2_mag) > 1:
         # W2 data second
@@ -357,7 +334,6 @@ for object_name in object_names:
         W2_averages= []
         W2_av_uncs = []
         W2_av_mjd_date = []
-        W2_epoch_dps = []  
         for i in range(len(W2_mag)):
             if i == 0: #first reading - store and move on
                 W2_list.append(W2_mag[i][0])
@@ -374,7 +350,6 @@ for object_name in object_names:
                     W2_av_uncs.append(median_abs_deviation(W2_list))
                 else:
                     W2_av_uncs.append(W2_unc_list[0])
-                W2_epoch_dps.append(len(W2_list))
                 continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
@@ -388,7 +363,6 @@ for object_name in object_names:
                     W2_av_uncs.append(median_abs_deviation(W2_list))
                 else:
                     W2_av_uncs.append(W2_unc_list[0])
-                W2_epoch_dps.append(len(W2_list))
                 W2_list = []
                 W2_mjds = []
                 W2_unc_list = []
@@ -400,7 +374,6 @@ for object_name in object_names:
         W2_averages = []
         W2_av_mjd_date = []
         W2_av_uncs = []
-        W2_epoch_dps = []
     
     if len(W1_mag) > 1 and len(W2_mag) > 1:
         #Changing mjd date to days since start:
@@ -581,11 +554,6 @@ for object_name in object_names:
             W1_abs_change_norm.append(W1_abs_norm)
             W1_abs_change_norm_unc.append(W1_abs_norm_unc)
 
-            W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
-            W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
-            W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
-            W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
-
             W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
             W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
 
@@ -645,30 +613,25 @@ for object_name in object_names:
             W2_abs_change_norm.append(W2_abs_norm)
             W2_abs_change_norm_unc.append(W2_abs_norm_unc)
 
-            W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
-            W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
-            W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
-            W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
-
             W2_SDSS_gap.append(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2])
             W2_DESI_gap.append(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2])
 
-            zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W1_z_score_SDSS_DESI), abs(W1_z_score_DESI_SDSS), abs(W2_z_score_SDSS_DESI), abs(W2_z_score_DESI_SDSS)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -857,11 +820,6 @@ for object_name in object_names:
             W1_abs_change_norm.append(W1_abs_norm)
             W1_abs_change_norm_unc.append(W1_abs_norm_unc)
 
-            W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
-            W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
-            W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
-            W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
-
             W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
             W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
 
@@ -883,38 +841,28 @@ for object_name in object_names:
             W2_abs_change_norm_unc.append(np.nan)
 
             if n == 0:
-                W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
-                W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
-                W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
-                W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
-
                 W2_SDSS_gap.append(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2])
                 W2_DESI_gap.append(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2])
             else:
-                W2_SDSS_bef_dps.append(np.nan)
-                W2_SDSS_aft_dps.append(np.nan)
-                W2_DESI_bef_dps.append(np.nan)
-                W2_DESI_aft_dps.append(np.nan)
-
                 W2_SDSS_gap.append(np.nan)
                 W2_DESI_gap.append(np.nan)
 
-            zscores = np.sort([W1_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W1_z_score_SDSS_DESI), abs(W1_z_score_DESI_SDSS), abs(W2_z_score_SDSS_DESI), abs(W2_z_score_DESI_SDSS)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -980,19 +928,9 @@ for object_name in object_names:
             W1_abs_change_norm_unc.append(np.nan)
 
             if m == 0:
-                W1_SDSS_bef_dps.append(W1_epoch_dps[before_SDSS_index_W1])
-                W1_SDSS_aft_dps.append(W1_epoch_dps[after_SDSS_index_W1])
-                W1_DESI_bef_dps.append(W1_epoch_dps[before_DESI_index_W1])
-                W1_DESI_aft_dps.append(W1_epoch_dps[after_DESI_index_W1])
-
                 W1_SDSS_gap.append(W1_av_mjd_date[after_SDSS_index_W1] - W1_av_mjd_date[before_SDSS_index_W1])
                 W1_DESI_gap.append(W1_av_mjd_date[after_DESI_index_W1] - W1_av_mjd_date[before_DESI_index_W1])
             else:
-                W1_SDSS_bef_dps.append(np.nan)
-                W1_SDSS_aft_dps.append(np.nan)
-                W1_DESI_bef_dps.append(np.nan)
-                W1_DESI_aft_dps.append(np.nan)
-
                 W1_SDSS_gap.append(np.nan)
                 W1_DESI_gap.append(np.nan)
 
@@ -1052,30 +990,25 @@ for object_name in object_names:
             W2_abs_change_norm.append(W2_abs_norm)
             W2_abs_change_norm_unc.append(W2_abs_norm_unc)
 
-            W2_SDSS_bef_dps.append(W2_epoch_dps[before_SDSS_index_W2])
-            W2_SDSS_aft_dps.append(W2_epoch_dps[after_SDSS_index_W2])
-            W2_DESI_bef_dps.append(W2_epoch_dps[before_DESI_index_W2])
-            W2_DESI_aft_dps.append(W2_epoch_dps[after_DESI_index_W2])
-
             W2_SDSS_gap.append(W2_av_mjd_date[after_SDSS_index_W2] - W2_av_mjd_date[before_SDSS_index_W2])
             W2_DESI_gap.append(W2_av_mjd_date[after_DESI_index_W2] - W2_av_mjd_date[before_DESI_index_W2])
 
-            zscores = np.sort([W2_z_score_SDSS_DESI, W1_z_score_DESI_SDSS, W2_z_score_SDSS_DESI, W2_z_score_DESI_SDSS]) #sorts in ascending order, nans at end
+            zscores = np.sort([abs(W2_z_score_SDSS_DESI), abs(W1_z_score_DESI_SDSS), abs(W2_z_score_SDSS_DESI), abs(W2_z_score_DESI_SDSS)]) #sorts in ascending order, nans at end
             zscore_uncs = np.sort([W1_z_score_SDSS_DESI_unc, W1_z_score_DESI_SDSS_unc, W2_z_score_SDSS_DESI_unc, W2_z_score_DESI_SDSS_unc])
             if np.isnan(zscores[0]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be nan - all values are nan
+                mean_zscore.append(np.nanmean(zscores)) #will be nan - all values are nan
                 mean_zscore_unc.append(np.nan)
             elif np.isnan(zscores[1]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be zscores[0] - only non nan value
+                mean_zscore.append(np.nanmean(zscores)) #will be zscores[0] - only non nan value
                 mean_zscore_unc.append(abs(zscore_uncs[0]))
             elif np.isnan(zscores[2]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores))) #will be 1/2(zscores[0]+zscores[1])
+                mean_zscore.append(np.nanmean(zscores)) #will be 1/2(zscores[0]+zscores[1])
                 mean_zscore_unc.append((1/2)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2))
             elif np.isnan(zscores[3]) == True:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/3)*np.sqrt(zscore_uncs[0]**2+zscore_uncs[1]**2 + zscore_uncs[2]**2))
             else:
-                mean_zscore.append(np.nanmean(abs(zscores)))
+                mean_zscore.append(np.nanmean(zscores))
                 mean_zscore_unc.append((1/4)*np.sqrt(sum(unc**2 for unc in zscore_uncs)))
 
             norm_f_ch = np.sort([W1_abs_norm, W2_abs_norm])
@@ -1150,15 +1083,6 @@ quantifying_change_data = {
 
     "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #21
     "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #22
-
-    "W1 before SDSS Epoch DPs": W1_SDSS_bef_dps, #23
-    "W1 after SDSS Epoch DPs": W1_SDSS_aft_dps, #24
-    "W1 before DESI Epoch DPs": W1_DESI_bef_dps, #25
-    "W1 after DESI Epoch DPs": W1_DESI_aft_dps, #26
-    "W2 before SDSS Epoch DPs": W2_SDSS_bef_dps, #27
-    "W2 after SDSS Epoch DPs": W2_SDSS_aft_dps, #28
-    "W2 before DESI Epoch DPs": W2_DESI_bef_dps, #29
-    "W2 after DESI Epoch DPs": W2_DESI_aft_dps, #30
 
     "W1 SDSS Gap": W1_SDSS_gap, #31
     "W1 DESI Gap": W1_DESI_gap, #32

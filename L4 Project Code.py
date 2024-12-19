@@ -39,14 +39,16 @@ c = 299792458
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
-object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
+# object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
 # object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
 # object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
 # object_name = '164331.90+304835.5' #Object N - chosen due to enourmous Z score (120)
 # object_name = '163826.34+382512.1' #Object O - chosen because not a CLAGN, but has enourmous normalised flux change
 # object_name = '141535.46+022338.7' #Object P - chosen because of very high z score
 # object_name = '121542.99+574702.3' #Object Q - chosen because not a CLAGN, but has a large normalised flux change.
-object_name = '125747.74+272415.1'
+object_name = '100523.31+024536.0' # chosen because has an uncertainty of 0 in its min epoch
+# object_name = '125449.57+574805.3' #Object with example of spurious measurement
+# object_name = '143054.79+531713.9' #Object with example of spurious measurement
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
         k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -54,12 +56,8 @@ def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, ta
 
 W1_k = 309.540 #Janskys. This means that mag 0 = 309.540 Janskys at the W1 wl.
 W2_k = 171.787
-g_k = 3991
-r_k = 3174
 W1_wl = 3.4e4 #Angstroms
 W2_wl = 4.6e4
-g_wl = 0.467e4
-r_wl = 0.616e4
 
 Min_SNR = 3 #Options are 10, 3, or 2. #A (SNR>10), B (3<SNR<10) or C (2<SNR<3)
 if Min_SNR == 10: #Select Min_SNR on line above.
@@ -132,58 +130,60 @@ else:
     sdss_lamb = 10**subset.data['loglam'] #Wavelength in Angstroms
     sdss_flux_unc = np.array([np.sqrt(1/val) if val!=0 else np.nan for val in subset.data['ivar']])
 
-client = SparclClient(connect_timeout=10)
+desi_lamb = []
+desi_flux = []
+# client = SparclClient(connect_timeout=10)
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
-def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
+# @retry(stop=stop_after_attempt(3), wait=wait_fixed(10), retry=retry_if_exception_type((ConnectTimeout, TimeoutError, ConnectionError)))
+# def get_primary_spectrum(specid): #some objects have multiple spectra for it in DESI- the best one is the 'primary' spectrum
     
-    res = client.retrieve_by_specid(specid_list=[specid], include=['specprimary', 'wavelength', 'flux'], dataset_list=['DESI-EDR'])
+#     res = client.retrieve_by_specid(specid_list=[specid], include=['specprimary', 'wavelength', 'flux'], dataset_list=['DESI-EDR'])
 
-    records = res.records
+#     records = res.records
 
-    if not records: #no spectrum could be found:
-        print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
+#     if not records: #no spectrum could be found:
+#         print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
 
-        try:
-            DESI_file = f'spectrum_desi_{object_name}.csv'
-            DESI_file_path = f'clagn_spectra/{DESI_file}'
-            DESI_spec = pd.read_csv(DESI_file_path)
-            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
-            print('DESI file is in downloads - will proceed as normal')
-            return desi_lamb, desi_flux
-        except FileNotFoundError as e:
-            print('No DESI file already downloaded.')
-            return [], []
+#         try:
+#             DESI_file = f'spectrum_desi_{object_name}.csv'
+#             DESI_file_path = f'clagn_spectra/{DESI_file}'
+#             DESI_spec = pd.read_csv(DESI_file_path)
+#             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+#             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#             print('DESI file is in downloads - will proceed as normal')
+#             return desi_lamb, desi_flux
+#         except FileNotFoundError as e:
+#             print('No DESI file already downloaded.')
+#             return [], []
 
-    # Identify the primary spectrum
-    spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
+#     # Identify the primary spectrum
+#     spec_primary = np.array([records[jj].specprimary for jj in range(len(records))])
 
-    if not np.any(spec_primary):
-        print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
+#     if not np.any(spec_primary):
+#         print(f'DESI Spectrum cannot be found for object_name = {object_name}, DESI specid = {DESI_name}')
 
-        try:
-            DESI_file = f'spectrum_desi_{object_name}.csv'
-            DESI_file_path = f'clagn_spectra/{DESI_file}'
-            DESI_spec = pd.read_csv(DESI_file_path)
-            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
-            print('DESI file is in downloads - will proceed as normal')
-            return desi_lamb, desi_flux
-        except FileNotFoundError as e:
-            print('No DESI file already downloaded.')
-            return [], []
+#         try:
+#             DESI_file = f'spectrum_desi_{object_name}.csv'
+#             DESI_file_path = f'clagn_spectra/{DESI_file}'
+#             DESI_spec = pd.read_csv(DESI_file_path)
+#             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
+#             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#             print('DESI file is in downloads - will proceed as normal')
+#             return desi_lamb, desi_flux
+#         except FileNotFoundError as e:
+#             print('No DESI file already downloaded.')
+#             return [], []
 
-    # Get the index of the primary spectrum
-    primary_idx = np.where(spec_primary == True)[0][0]
+#     # Get the index of the primary spectrum
+#     primary_idx = np.where(spec_primary == True)[0][0]
 
-    # Extract wavelength and flux for the primary spectrum
-    desi_lamb = records[primary_idx].wavelength
-    desi_flux = records[primary_idx].flux
+#     # Extract wavelength and flux for the primary spectrum
+#     desi_lamb = records[primary_idx].wavelength
+#     desi_flux = records[primary_idx].flux
 
-    return desi_lamb, desi_flux
+#     return desi_lamb, desi_flux
 
-desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
+# desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
 
 sfd = sfdmap.SFDMap('SFD_dust_files') #called SFD map, but see - https://github.com/kbarbary/sfdmap/blob/master/README.md
 # It explains how "By default, a scaling of 0.86 is applied to the map values to reflect the recalibration by Schlafly & Finkbeiner (2011)"
@@ -548,7 +548,7 @@ W2_av_mjd_date = []
 W2_epoch_dps = []
 one_epoch_W2 = []
 one_epoch_W2_unc = []
-m = 3 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+m = 12 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
 p = 0
 for i in range(len(W2_mag)):
     if i == 0: #first reading - store and move on
@@ -609,10 +609,10 @@ mjd_value = mjd_value - min_mjd
 W1_av_mjd_date = [date - min_mjd for date in W1_av_mjd_date]
 W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
-for i in range(len(W1_av_mjd_date)-1):
-    print(f'{i+1}-{i+2} epoch gap, W1 = {W1_av_mjd_date[i+1]-W1_av_mjd_date[i]}')
-for j in range(len(W2_av_mjd_date)-1):
-    print(f'{j+1}-{j+2} epoch gap, W2 = {W2_av_mjd_date[j+1]-W2_av_mjd_date[j]}')
+# for i in range(len(W1_av_mjd_date)-1):
+#     print(f'{i+1}-{i+2} epoch gap, W1 = {W1_av_mjd_date[i+1]-W1_av_mjd_date[i]}')
+# for j in range(len(W2_av_mjd_date)-1):
+#     print(f'{j+1}-{j+2} epoch gap, W2 = {W2_av_mjd_date[j+1]-W2_av_mjd_date[j]}')
 
 # print(f'Number of MIR W1 epochs = {len(W1_averages)}')
 # print(f'Number of MIR W2 epochs = {len(W2_averages)}')
@@ -769,15 +769,6 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 
 # # Specifically looking at a particular epoch:
 # # Change 'm = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
-
-# plt.figure(figsize=(12,7))
-# plt.errorbar(one_epoch_r_mjd, one_epoch_r, yerr=one_epoch_r_unc, fmt='o', color='red', capsize=5, label=u'PTF - r band')
-# plt.title(f'r Band Measurements at Epoch {m+1} - {min([mjd_date_g_epoch[0], mjd_date_r_epoch[0]]):.0f} Days Since First WISE Observation', fontsize=16)
-# plt.xlabel('mjd')
-# plt.ylabel('Magnitude')
-# plt.legend(loc='upper left')
-# plt.show()
-
 # # (measurements are taken with a few days hence considered repeats)
 # # Create a figure with two subplots (1 row, 2 columns)
 # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7), sharex=False)
@@ -792,14 +783,14 @@ if q == 0 and w == 0 and e == 0 and r == 0:
 # ax1.errorbar(data_point_W1, W1_one_epoch_flux, yerr=W1_one_epoch_uncs_flux, fmt='o', color='orange', capsize=5, label=u'W1 (3.4 \u03bcm)')
 # ax1.set_title('W1')
 # ax1.set_xlabel('Data Point')
-# ax1.set_ylabel('Magnitude')
+# ax1.set_ylabel('Flux')
 # ax1.legend(loc='upper left')
 
 # # Plot in the second subplot (ax2)
 # ax2.errorbar(data_point_W2, W2_one_epoch_flux, yerr=W2_one_epoch_uncs_flux, fmt='o', color='blue', capsize=5, label=u'W2 (4.6 \u03bcm)')
 # ax2.set_title('W2')
 # ax2.set_xlabel('Data Point')
-# ax2.set_ylabel('Magnitude')
+# ax2.set_ylabel('Flux')
 # ax2.legend(loc='upper left')
 
 # fig.suptitle(f'W1 & W2 band Measurements at Epoch {m+1} - {W1_av_mjd_date[m]:.0f} Days Since First Observation', fontsize=16)
@@ -983,88 +974,4 @@ fig.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=1.25, wsp
 #hspace and wspace adjust the spacing between rows and columns, respectively.
 
 # fig.savefig(f'./CLAGN Figures/{object_name} - Flux vs Time.png', dpi=300, bbox_inches='tight')
-plt.show()
-
-#Quantifying change data
-CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR.csv')
-CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 17].tolist()  # 16th column, skipping the first row (header)
-CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 18].tolist()
-CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 19].tolist()
-CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 20].tolist()
-
-AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR.csv')
-AGN_zscores = AGN_quantifying_change_data.iloc[1:, 17].tolist()
-AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 18].tolist()
-AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 19].tolist()
-AGN_norm_flux_change_unc = AGN_quantifying_change_data.iloc[1:, 20].tolist()
-
-#want the median value of the random sample of AGN
-median_norm_flux_change = np.nanmedian(AGN_norm_flux_change)
-median_norm_flux_change_unc = np.nanmedian(AGN_norm_flux_change_unc)
-three_sigma_norm_flux_change = median_norm_flux_change + 3*median_norm_flux_change_unc
-median_zscore = np.nanmedian(AGN_zscores)
-median_zscore_unc = np.nanmedian(AGN_zscore_uncs)
-three_sigma_zscore = median_zscore + 3*median_zscore_unc
-print(f'3\u03C3 significance for norm flux change = {three_sigma_norm_flux_change}')
-print(f'3\u03C3 significance for z score = {three_sigma_zscore}')
-
-median_norm_flux_change_CLAGN = np.nanmedian(CLAGN_norm_flux_change)
-median_zscore_CLAGN = np.nanmedian(CLAGN_zscores)
-
-
-# # A histogram of z score values & normalised flux change values
-# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7))  # Creates a figure with 1 row and 2 columns
-
-# zscore_binsize = 1
-# # # #CLAGN
-# bins_zscores = np.arange(0, max(CLAGN_zscores)+zscore_binsize, zscore_binsize)
-# ax1.hist(CLAGN_zscores, bins=bins_zscores, color='orange', edgecolor='black', label=f'binsize = {zscore_binsize}')
-# ax1.axvline(median_zscore_CLAGN, linewidth=2, linestyle='--', color='black', label = f'Median = {median_zscore_CLAGN:.2f}')
-# # # # #AGN
-# # bins_zscores = np.arange(0, max(AGN_zscores)+zscore_binsize, zscore_binsize)
-# # ax1.hist(AGN_zscores, bins=bins_zscores, color='orange', edgecolor='black', label=f'binsize = {zscore_binsize}')
-# # ax1.axvline(median_zscore, linewidth=2, linestyle='--', color='black', label = f'Median = {median_zscore:.2f}')
-# ax1.set_xlabel('Z Score')
-# ax1.set_ylabel('Frequency')
-# ax1.legend(loc='upper right')
-
-# norm_flux_change_binsize = 0.10
-# # #CLAGN
-# bins_norm_flux_change = np.arange(0, max(CLAGN_norm_flux_change)+norm_flux_change_binsize, norm_flux_change_binsize)
-# ax2.hist(CLAGN_norm_flux_change, bins=bins_norm_flux_change, color='blue', edgecolor='black', label=f'binsize = {norm_flux_change_binsize}')
-# ax2.axvline(median_norm_flux_change_CLAGN, linewidth=2, linestyle='--', color='black', label = f'Median = {median_norm_flux_change_CLAGN:.2f}')
-# # # #AGN
-# # bins_norm_flux_change = np.arange(0, max(AGN_norm_flux_change)+norm_flux_change_binsize, norm_flux_change_binsize)
-# # ax2.hist(AGN_norm_flux_change, bins=bins_norm_flux_change, color='blue', edgecolor='black', label=f'binsize = {norm_flux_change_binsize}')
-# # ax2.axvline(median_norm_flux_change, linewidth=2, linestyle='--', color='black', label = f'Median = {median_norm_flux_change:.2f}')
-# ax2.set_xlabel('Normalised Flux Change')
-# ax2.set_ylabel('Frequency')
-# ax2.legend(loc='upper right')
-
-# # #CLAGN
-# plt.suptitle('Z Score & Normalised Flux Change Distribution - Guo CLAGN', fontsize=16)
-# # # #AGN
-# # plt.suptitle('Z Score & Normalised Flux Change Distribution - Parent Sample AGN', fontsize=16)
-# plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
-# plt.show()
-
-
-# # #Creating a 2d plot for normalised flux change & z score:
-plt.figure(figsize=(7, 7)) #square figure
-plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Parent Sample AGN')
-plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='Guo CLAGN')
-# plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, color='red',  label='Guo CLAGN')
-# plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, color='blue', label='Parent Sample AGN')
-plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label=u'3\u03C3 significance')
-plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
-plt.xlim(0, 100)
-# plt.ylim(0, 3)
-# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
-plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
-plt.xlabel("Z Score")
-plt.ylabel("Normalised Flux Change")
-plt.title("Quantifying MIR Variability in AGN")
-plt.legend(loc = 'best')
-plt.grid(True, linestyle='--', alpha=0.5)
-plt.tight_layout()
 plt.show()

@@ -84,3 +84,14 @@ new_parent.to_csv('new_parent_sample_55k.csv', index=False)
 
 # same_redshift.to_csv('clean_parent_sample.csv', index=False)
 # different_redshift.to_csv('outside_redshift_sample.csv', index=False)
+
+
+# ##Checking if any Guo CLAGN are in sample
+# Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
+
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+
+# no_CLAGN = same_redshift[~same_redshift.iloc[:, 3].isin(object_names)]
+# print(f'Objects in cleaned sample after CLAGN removed = {len(no_CLAGN)}')
+
+# no_CLAGN.to_csv('clean_parent_sample_no_CLAGN.csv', index=False)
