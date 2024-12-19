@@ -46,13 +46,14 @@ c = 299792458
 # object_name = '163826.34+382512.1' #Object O - chosen because not a CLAGN, but has enourmous normalised flux change
 # object_name = '141535.46+022338.7' #Object P - chosen because of very high z score
 # object_name = '121542.99+574702.3' #Object Q - chosen because not a CLAGN, but has a large normalised flux change.
-object_name = '100523.31+024536.0' # chosen because has an uncertainty of 0 in its min epoch
+# object_name = '100523.31+024536.0' # chosen because has an uncertainty of 0 in its min epoch
 # object_name = '125449.57+574805.3' #Object with example of spurious measurement
 # object_name = '143054.79+531713.9' #Object with example of spurious measurement
+object_name = '160932.30+554344.2' #Object with example of spurious measurement
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
-        k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
-        return k*10**(-mag/2.5)
+    k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
+    return k*10**(-mag/2.5)
 
 W1_k = 309.540 #Janskys. This means that mag 0 = 309.540 Janskys at the W1 wl.
 W2_k = 171.787
