@@ -1084,13 +1084,13 @@ quantifying_change_data = {
     "Mean UV Flux Change DESI - SDSS": mean_UV_flux_change, #21
     "Mean UV Flux Change DESI - SDSS Unc": mean_UV_flux_change_unc, #22
 
-    "W1 SDSS Gap": W1_SDSS_gap, #31
-    "W1 DESI Gap": W1_DESI_gap, #32
-    "W2 SDSS Gap": W2_SDSS_gap, #33
-    "W2 DESI Gap": W2_DESI_gap, #34
+    "W1 SDSS Gap": W1_SDSS_gap, #23
+    "W1 DESI Gap": W1_DESI_gap, #24
+    "W2 SDSS Gap": W2_SDSS_gap, #25
+    "W2 DESI Gap": W2_DESI_gap, #26
 
-    "SDSS Redshift": SDSS_redshifts, #35
-    "DESI Redshift": DESI_redshifts, #36
+    "SDSS Redshift": SDSS_redshifts, #27
+    "DESI Redshift": DESI_redshifts, #28
 
 }
 

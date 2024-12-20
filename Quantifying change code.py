@@ -3,17 +3,21 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 #Quantifying change data
-CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR.csv')
-CLAGN_zscores = CLAGN_quantifying_change_data.iloc[1:, 17].tolist()  # 16th column, skipping the first row (header)
-CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[1:, 18].tolist()
-CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[1:, 19].tolist()
-CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[1:, 20].tolist()
+CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv')
+# CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
+print(f'Number of CLAGN: {len(CLAGN_quantifying_change_data)}')
+CLAGN_zscores = CLAGN_quantifying_change_data.iloc[:, 17].tolist()  # 18th column
+CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[:, 18].tolist()
+CLAGN_norm_flux_change = CLAGN_quantifying_change_data.iloc[:, 19].tolist()
+CLAGN_norm_flux_change_unc = CLAGN_quantifying_change_data.iloc[:, 20].tolist()
 
-AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR.csv')
-AGN_zscores = AGN_quantifying_change_data.iloc[1:, 17].tolist()
-AGN_zscore_uncs = AGN_quantifying_change_data.iloc[1:, 18].tolist()
-AGN_norm_flux_change = AGN_quantifying_change_data.iloc[1:, 19].tolist()
-AGN_norm_flux_change_unc = AGN_quantifying_change_data.iloc[1:, 20].tolist()
+AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv')
+# AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
+print(f'Number of AGN: {len(AGN_quantifying_change_data)}')
+AGN_zscores = AGN_quantifying_change_data.iloc[:, 17].tolist()
+AGN_zscore_uncs = AGN_quantifying_change_data.iloc[:, 18].tolist()
+AGN_norm_flux_change = AGN_quantifying_change_data.iloc[:, 19].tolist()
+AGN_norm_flux_change_unc = AGN_quantifying_change_data.iloc[:, 20].tolist()
 
 #want the median value of the random sample of AGN
 median_norm_flux_change = np.nanmedian(AGN_norm_flux_change)
@@ -92,16 +96,16 @@ print(f'{l/len(AGN_norm_flux_change)*100:.2f}% of AGN above norm_change threshol
 
 # # # #Creating a 2d plot for normalised flux change & z score:
 # plt.figure(figsize=(7, 7)) #square figure
-# # plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Parent Sample AGN')
-# # plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='Guo CLAGN')
-# plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, fmt='o', color='blue', label='Parent Sample AGN')
-# plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, fmt='o', color='red',  label='Guo CLAGN')
+# plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Parent Sample AGN')
+# plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='Guo CLAGN')
+# # plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, fmt='o', color='blue', label='Parent Sample AGN')
+# # plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, fmt='o', color='red',  label='Guo CLAGN')
 # plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label=u'3\u03C3 significance')
 # plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
-# plt.xlim(0, 60)
-# plt.ylim(0, 5)
-# # plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
-# # plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
+# # plt.xlim(0, 40)
+# # plt.ylim(0, 5)
+# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+# plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
 # plt.xlabel("Z Score")
 # plt.ylabel("Normalised Flux Change")
 # plt.title("Quantifying MIR Variability in AGN")

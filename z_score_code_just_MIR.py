@@ -70,7 +70,7 @@ for object_name in object_names:
     print(g)
     print(object_name)
     g += 1
-    # #For AGN:
+    # # For AGN:
     # object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
     # SDSS_RA = object_data.iloc[0, 0]
     # SDSS_DEC = object_data.iloc[0, 1]
@@ -150,11 +150,11 @@ for object_name in object_names:
                 W1_list.append(W1_mag[i][0])
                 W1_mjds.append(W1_mag[i][1])
                 W1_unc_list.append(W1_mag[i][2])
-                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
-                # if len(W1_list) > 1:
-                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
-                # else:
-                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                # W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                if len(W1_list) > 1:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                else:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
@@ -162,11 +162,11 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
-                # if len(W1_list) > 1:
-                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
-                # else:
-                #     W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                # W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
+                if len(W1_list) > 1:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                else:
+                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
                 W1_list = []
                 W1_mjds = []
                 W1_unc_list = []
@@ -194,11 +194,11 @@ for object_name in object_names:
                 W2_list.append(W2_mag[i][0])
                 W2_mjds.append(W2_mag[i][1])
                 W2_unc_list.append(W2_mag[i][2])
-                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
-                # if len(W2_list) > 1:
-                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
-                # else:
-                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                # W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                if len(W2_list) > 1:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                else:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
@@ -206,11 +206,11 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 continue
             else: #if the gap is bigger than 100 days, then take the averages and reset the lists.
-                W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
-                # if len(W2_list) > 1:
-                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
-                # else:
-                #     W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                # W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
+                if len(W2_list) > 1:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                else:
+                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
                 W2_list = []
                 W2_mjds = []
                 W2_unc_list = []
