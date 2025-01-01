@@ -11,10 +11,10 @@ parent_sample = pd.read_csv('clean_parent_sample_no_CLAGN.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
+object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -34,6 +34,10 @@ W1_max = []
 W1_max_unc = []
 W1_min = []
 W1_min_unc = []
+W1_low = []
+W1_median_dev = []
+W1_median_unc = []
+W1_median_dev_unc = []
 W1_abs_change = []
 W1_abs_change_unc = []
 W1_abs_change_norm = []
@@ -44,6 +48,10 @@ W2_max = []
 W2_max_unc = []
 W2_min = []
 W2_min_unc = []
+W2_low = []
+W2_median_dev = []
+W2_median_unc = []
+W2_median_dev_unc = []
 W2_abs_change = []
 W2_abs_change_unc = []
 W2_abs_change_norm = []
@@ -70,19 +78,19 @@ for object_name in object_names:
     print(g)
     print(object_name)
     g += 1
-    # # For AGN:
-    # object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
-    # SDSS_RA = object_data.iloc[0, 0]
-    # SDSS_DEC = object_data.iloc[0, 1]
-    # SDSS_z = object_data.iloc[0, 2]
-    # DESI_z = object_data.iloc[0, 9]
+    # For AGN:
+    object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
+    SDSS_RA = object_data.iloc[0, 0]
+    SDSS_DEC = object_data.iloc[0, 1]
+    SDSS_z = object_data.iloc[0, 2]
+    DESI_z = object_data.iloc[0, 9]
 
-    #For CLAGN:
-    object_data = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
-    SDSS_RA = object_data.iloc[0, 1]
-    SDSS_DEC = object_data.iloc[0, 2]
-    SDSS_z = object_data.iloc[0, 3]
-    DESI_z = object_data.iloc[0, 3]
+    # #For CLAGN:
+    # object_data = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+    # SDSS_RA = object_data.iloc[0, 1]
+    # SDSS_DEC = object_data.iloc[0, 2]
+    # SDSS_z = object_data.iloc[0, 3]
+    # DESI_z = object_data.iloc[0, 3]
 
     # Automatically querying catalogues
     coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
@@ -250,11 +258,21 @@ for object_name in object_names:
             W1_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W1_data, W1_averages_flux)] #See document in week 5 folder for conversion.
             W2_averages_flux = [flux(tup[0], W2_k, W2_wl) for tup in W2_data]
             W2_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W2_data, W2_averages_flux)]
+            
+            W1_median_dev.append(median_abs_deviation(W1_averages_flux))
+            W1_median_unc.append(np.nanmedian(W1_av_uncs_flux))
+            W1_median_dev_unc.append(median_abs_deviation(W1_av_uncs_flux))
+
+            W2_median_dev.append(median_abs_deviation(W2_averages_flux))
+            W2_median_unc.append(np.nanmedian(W2_av_uncs_flux))
+            W2_median_dev_unc.append(median_abs_deviation(W2_av_uncs_flux))
 
             W1_second_largest = sorted(W1_averages_flux, reverse=True)[1] #take second smallest and second largest to avoid sputious measurements. 
             W1_second_largest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_largest)] #NOT the 2nd largest unc. This is the unc in the second largest flux value
             W1_second_smallest = sorted(W1_averages_flux)[1]
             W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+
+            W1_low.append(W1_second_smallest)
 
             #uncertainty in absolute flux change
             W1_abs = abs(W1_second_largest-W1_second_smallest)
@@ -285,6 +303,8 @@ for object_name in object_names:
             W2_second_largest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_largest)] #NOT the 2nd largest unc. This is the unc in the second largest flux value
             W2_second_smallest = sorted(W2_averages_flux)[1]
             W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+
+            W2_low.append(W2_second_smallest)
 
             W2_abs = abs(W2_second_largest-W2_second_smallest)
             W2_abs_unc = np.sqrt(W2_second_largest_unc**2 + W2_second_smallest_unc**2)
@@ -351,10 +371,21 @@ for object_name in object_names:
             W1_averages_flux = [flux(tup[0], W1_k, W1_wl) for tup in W1_data]
             W1_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W1_data, W1_averages_flux)]
 
+            W1_median_dev.append(median_abs_deviation(W1_averages_flux))
+            W1_median_unc.append(np.nanmedian(W1_av_uncs_flux))
+            W1_median_dev_unc.append(median_abs_deviation(W1_av_uncs_flux))
+
+            W2_low.append(np.nan)
+            W2_median_dev.append(np.nan)
+            W2_median_unc.append(np.nan)
+            W2_median_dev_unc.append(np.nan)
+
             W1_second_largest = sorted(W1_averages_flux, reverse=True)[1]
             W1_second_largest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_largest)]
             W1_second_smallest = sorted(W1_averages_flux)[1]
             W1_second_smallest_unc = W1_av_uncs_flux[W1_averages_flux.index(W1_second_smallest)]
+
+            W1_low.append(W1_second_smallest)
 
             W1_abs = abs(W1_second_largest-W1_second_smallest)
             W1_abs_unc = np.sqrt(W1_second_largest_unc**2 + W1_second_smallest_unc**2)
@@ -437,6 +468,16 @@ for object_name in object_names:
 
             W2_av_uncs_flux = [((tup[2]*np.log(10))/(2.5))*flux for tup, flux in zip(W2_data, W2_averages_flux)]
             W2_averages_flux = [flux(tup[0], W2_k, W2_wl) for tup in W2_data]
+            
+            W1_low.append(np.nan)
+
+            W1_median_dev.append(np.nan)
+            W1_median_unc.append(np.nan)
+            W1_median_dev_unc.append(np.nan)
+
+            W2_median_dev.append(median_abs_deviation(W2_averages_flux))
+            W2_median_unc.append(np.nanmedian(W2_av_uncs_flux))
+            W2_median_dev_unc.append(median_abs_deviation(W2_av_uncs_flux))
 
             W1_z_score_max = np.nan
             W1_z_score_max_unc = np.nan
@@ -458,6 +499,8 @@ for object_name in object_names:
             W2_second_largest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_largest)]
             W2_second_smallest = sorted(W2_averages_flux)[1]
             W2_second_smallest_unc = W2_av_uncs_flux[W2_averages_flux.index(W2_second_smallest)]
+
+            W2_low.append(W2_second_smallest)
 
             W2_abs = abs(W2_second_largest-W2_second_smallest)
             W2_abs_unc = np.sqrt(W2_second_largest_unc**2 + W2_second_smallest_unc**2)
@@ -547,11 +590,19 @@ quantifying_change_data = {
     "W2 Gap": W2_gap, #22
     "SDSS Redshift": SDSS_redshifts, #23
     "DESI Redshift": DESI_redshifts, #24
+    "W1 2nd lowest Flux": W1_low, #25
+    "W2 2nd lowest Flux": W2_low, #26
+    "W1 median_abs_dev of Flux": W1_median_dev, #27
+    "W1 Median Unc": W1_median_unc, #28
+    "W1 median_abs_dev of Uncs": W1_median_dev_unc, #29
+    "W2 median_abs_dev of Flux": W2_median_dev, #30
+    "W2 Median Unc": W2_median_unc, #31
+    "W2 median_abs_dev of Uncs": W2_median_dev_unc, #32
 }
 
 # Convert the data into a DataFrame
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-df.to_csv("CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
-# df.to_csv("AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
+# df.to_csv("CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
+df.to_csv("AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
