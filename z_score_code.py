@@ -173,8 +173,8 @@ def get_primary_DESI_spectrum(targetid): #some objects have multiple spectra for
             DESI_file = f'spectrum_desi_{object_name}.csv'
             DESI_file_path = f'clagn_spectra/{DESI_file}'
             DESI_spec = pd.read_csv(DESI_file_path)
-            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+            desi_lamb = DESI_spec.iloc[:, 0]  # First column
+            desi_flux = DESI_spec.iloc[:, 1]  # Second column
             print('DESI file is in downloads - will proceed as normal')
             return desi_lamb, desi_flux
         except FileNotFoundError as e:
@@ -191,8 +191,8 @@ def get_primary_DESI_spectrum(targetid): #some objects have multiple spectra for
             DESI_file = f'spectrum_desi_{object_name}.csv'
             DESI_file_path = f'clagn_spectra/{DESI_file}'
             DESI_spec = pd.read_csv(DESI_file_path)
-            desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-            desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+            desi_lamb = DESI_spec.iloc[:, 0]  # First column
+            desi_flux = DESI_spec.iloc[:, 1]  # Second column
             print('DESI file is in downloads - will proceed as normal')
             return desi_lamb, desi_flux
         except FileNotFoundError as e:
@@ -292,16 +292,28 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
             elif i == len(W1_mag) - 1: #if final data point, close the epoch
-                W1_list.append(W1_mag[i][0])
-                W1_mjds.append(W1_mag[i][1])
-                W1_unc_list.append(W1_mag[i][2])
-                W1_averages.append(np.median(W1_list))
-                W1_av_mjd_date.append(np.median(W1_mjds))
-                if len(W1_list) > 1:
-                    W1_av_uncs.append(median_abs_deviation(W1_list))
-                else:
-                    W1_av_uncs.append(W1_unc_list[0])
-                continue
+                if W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+                    W1_list.append(W1_mag[i][0])
+                    W1_mjds.append(W1_mag[i][1])
+                    W1_unc_list.append(W1_mag[i][2])
+                    W1_averages.append(np.median(W1_list))
+                    W1_av_mjd_date.append(np.median(W1_mjds))
+                    if len(W1_list) > 1:
+                        W1_av_uncs.append(median_abs_deviation(W1_list))
+                    else:
+                        W1_av_uncs.append(W1_unc_list[0])
+                    continue
+                else: #final data point is in an epoch of its own
+                    W1_averages.append(np.median(W1_list))
+                    W1_av_mjd_date.append(np.median(W1_mjds))
+                    if len(W1_list) > 1:
+                        W1_av_uncs.append(median_abs_deviation(W1_list))
+                    else:
+                        W1_av_uncs.append(W1_unc_list[0])
+                    W1_averages.append(W1_mag[i][0])
+                    W1_av_mjd_date.append(W1_mag[i][1])
+                    W1_av_uncs.append(W1_mag[i][2])
+                    continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
                 W1_mjds.append(W1_mag[i][1])
@@ -341,16 +353,28 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 continue
             elif i == len(W2_mag) - 1: #if final data point, close the epoch
-                W2_list.append(W2_mag[i][0])
-                W2_mjds.append(W2_mag[i][1])
-                W2_unc_list.append(W2_mag[i][2])
-                W2_averages.append(np.median(W2_list))
-                W2_av_mjd_date.append(np.median(W2_mjds))
-                if len(W2_list) > 1:
-                    W2_av_uncs.append(median_abs_deviation(W2_list))
-                else:
-                    W2_av_uncs.append(W2_unc_list[0])
-                continue
+                if W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+                    W2_list.append(W2_mag[i][0])
+                    W2_mjds.append(W2_mag[i][1])
+                    W2_unc_list.append(W2_mag[i][2])
+                    W2_averages.append(np.median(W2_list))
+                    W2_av_mjd_date.append(np.median(W2_mjds))
+                    if len(W2_list) > 1:
+                        W2_av_uncs.append(median_abs_deviation(W2_list))
+                    else:
+                        W2_av_uncs.append(W2_unc_list[0])
+                    continue
+                else: #final data point is in an epoch of its own
+                    W2_averages.append(np.median(W2_list))
+                    W2_av_mjd_date.append(np.median(W2_mjds))
+                    if len(W2_list) > 1:
+                        W2_av_uncs.append(median_abs_deviation(W2_list))
+                    else:
+                        W2_av_uncs.append(W2_unc_list[0])
+                    W2_averages.append(W2_mag[i][0])
+                    W2_av_mjd_date.append(W2_mag[i][1])
+                    W2_av_uncs.append(W2_mag[i][2])
+                    continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
                 W2_mjds.append(W2_mag[i][1])

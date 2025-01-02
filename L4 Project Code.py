@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from matplotlib.ticker import MultipleLocator
 import pandas as pd
 import math
 from scipy.interpolate import interp1d
@@ -41,7 +42,7 @@ c = 299792458
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
 # object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
 # object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
-object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
+# object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
 # object_name = '164331.90+304835.5' #Object N - chosen due to enourmous Z score (120)
 # object_name = '163826.34+382512.1' #Object O - chosen because not a CLAGN, but has enourmous normalised flux change
 # object_name = '141535.46+022338.7' #Object P - chosen because of very high z score
@@ -49,7 +50,7 @@ object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into 
 # object_name = '125449.57+574805.3' #Object R - chosen because not a CLAGN, but has a spurious measurement
 # object_name = '100523.31+024536.0' #Object S - chosen because has an uncertainty of 0 in its min epoch
 # object_name = '114249.08+544709.7' #Object T - chosen because non-CLAGN and has a z score of 141
-# object_name = '131630.87+211915.1' #Object U - chosen because non-CLAGN and has a z score of 229
+object_name = '131630.87+211915.1' #Object U - chosen because non-CLAGN and has a z score of 229
 
 #Below are the 4 non-CL AGN that have norm flux difference > threshold.
 # object_name = '143054.79+531713.9' #Object V - chosen because non-CLAGN and has a norm flux change of > 1
@@ -57,8 +58,8 @@ object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into 
 # object_name = '122915.87+540232.3'
 # object_name = '164402.56+334825.0'
 
+# object_name = '160730.20+560305.5' #Object W - chosen because a CLAGN that exhibits no MIR change over SDSS-DESI range, but does exhibit a change after
 # object_name = '115838.31+541619.5' #Object X - chosen because not a CLAGN but shows some variability
-
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -105,8 +106,8 @@ coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
 
 # sdss_flux = []
 # sdss_lamb = []
-# desi_flux = []
-# desi_lamb = []
+desi_flux = []
+desi_lamb = []
 
 #Automatically querying the SDSS database
 downloaded_SDSS_spec = SDSS.get_spectra_async(plate=SDSS_plate_number, fiberID=SDSS_fiberid_number, mjd=SDSS_mjd)
@@ -161,8 +162,8 @@ else:
 #             DESI_file = f'spectrum_desi_{object_name}.csv'
 #             DESI_file_path = f'clagn_spectra/{DESI_file}'
 #             DESI_spec = pd.read_csv(DESI_file_path)
-#             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-#             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#             desi_lamb = DESI_spec.iloc[:, 0]  # First column, skipping the first row (header)
+#             desi_flux = DESI_spec.iloc[:, 1]  # Second column, skipping the first row (header)
 #             print('DESI file is in downloads - will proceed as normal')
 #             return desi_lamb, desi_flux
 #         except FileNotFoundError as e:
@@ -179,8 +180,8 @@ else:
 #             DESI_file = f'spectrum_desi_{object_name}.csv'
 #             DESI_file_path = f'clagn_spectra/{DESI_file}'
 #             DESI_spec = pd.read_csv(DESI_file_path)
-#             desi_lamb = DESI_spec.iloc[1:, 0]  # First column, skipping the first row (header)
-#             desi_flux = DESI_spec.iloc[1:, 1]  # Second column, skipping the first row (header)
+#             desi_lamb = DESI_spec.iloc[:, 0]  # First column
+#             desi_flux = DESI_spec.iloc[:, 1]  # Second column
 #             print('DESI file is in downloads - will proceed as normal')
 #             return desi_lamb, desi_flux
 #         except FileNotFoundError as e:
@@ -198,8 +199,11 @@ else:
 
 # desi_lamb, desi_flux = get_primary_spectrum(int(DESI_name))
 
-desi_lamb = []
-desi_flux = []
+# DESI_file = f'spectrum_desi_{object_name}.csv'
+# DESI_file_path = f'clagn_spectra/{DESI_file}'
+# DESI_spec = pd.read_csv(DESI_file_path)
+# desi_lamb = DESI_spec.iloc[:, 0]  # First column, skipping the first row (header)
+# desi_flux = DESI_spec.iloc[:, 1]  # Second column, skipping the first row (header)
 
 sfd = sfdmap.SFDMap('SFD_dust_files') #called SFD map, but see - https://github.com/kbarbary/sfdmap/blob/master/README.md
 # It explains how "By default, a scaling of 0.86 is applied to the map values to reflect the recalibration by Schlafly & Finkbeiner (2011)"
@@ -496,8 +500,6 @@ W1_averages= []
 W1_av_uncs = []
 W1_epoch_dps = []
 W1_av_mjd_date = []
-one_epoch_W1 = []
-one_epoch_W1_unc = []
 m = 11 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
 p = 0
 for i in range(len(W1_mag)):
@@ -507,23 +509,43 @@ for i in range(len(W1_mag)):
         W1_unc_list.append(W1_mag[i][2])
         continue
     elif i == len(W1_mag) - 1: #if final data point, close the epoch
-        W1_list.append(W1_mag[i][0])
-        W1_mjds.append(W1_mag[i][1])
-        W1_unc_list.append(W1_mag[i][2])
-        W1_averages.append(np.median(W1_list))
-        W1_av_mjd_date.append(np.median(W1_mjds))
-        if len(W1_list) > 1:
-            W1_av_uncs.append(median_abs_deviation(W1_list))
-        else:
-            W1_av_uncs.append(W1_unc_list[0])
-        W1_epoch_dps.append(len(W1_list)) #number of data points in this epoch
-        if p == m:
-            one_epoch_W1 = W1_list
-            one_epoch_W1_unc = W1_unc_list
-            mjd_value = W1_mag[i][1]
+        if W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+            W1_list.append(W1_mag[i][0])
+            W1_mjds.append(W1_mag[i][1])
+            W1_unc_list.append(W1_mag[i][2])
+            W1_averages.append(np.median(W1_list))
+            W1_av_mjd_date.append(np.median(W1_mjds))
+            if len(W1_list) > 1:
+                W1_av_uncs.append(median_abs_deviation(W1_list))
+            else:
+                W1_av_uncs.append(W1_unc_list[0])
+            W1_epoch_dps.append(len(W1_list)) #number of data points in this epoch
+            if p == m:
+                one_epoch_W1 = W1_list
+                one_epoch_W1_unc = W1_unc_list
+                one_epoch_W1_mjd = W1_mjds
+                mjd_value = W1_mag[i][1]
+                p += 1
             p += 1
-        p += 1
-        continue
+            continue
+        else: #final data point is in an epoch of its own
+            W1_averages.append(np.median(W1_list))
+            W1_av_mjd_date.append(np.median(W1_mjds))
+            if len(W1_list) > 1:
+                W1_av_uncs.append(median_abs_deviation(W1_list))
+            else:
+                W1_av_uncs.append(W1_unc_list[0])
+            W1_epoch_dps.append(len(W1_list))
+            if p == m:
+                one_epoch_W1 = W1_list
+                one_epoch_W1_unc = W1_unc_list
+                one_epoch_W1_mjd = W1_mjds
+                mjd_value = W1_mag[i][1]
+                p += 1
+            W1_averages.append(W1_mag[i][0])
+            W1_av_mjd_date.append(W1_mag[i][1])
+            W1_av_uncs.append(W1_mag[i][2])
+            continue
     elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
         W1_list.append(W1_mag[i][0])
         W1_mjds.append(W1_mag[i][1])
@@ -540,6 +562,7 @@ for i in range(len(W1_mag)):
         if p == m:
             one_epoch_W1 = W1_list
             one_epoch_W1_unc = W1_unc_list
+            one_epoch_W1_mjd = W1_mjds
             mjd_value = W1_mag[i][1]
             p += 1
         W1_list = []
@@ -559,9 +582,7 @@ W2_averages= []
 W2_av_uncs = []
 W2_av_mjd_date = []
 W2_epoch_dps = []
-one_epoch_W2 = []
-one_epoch_W2_unc = []
-m = 12 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
+n = 0 # Change depending on which epoch you wish to look at. m = 0 represents epoch 1. Causes error if (m+1)>number of epochs
 p = 0
 for i in range(len(W2_mag)):
     if i == 0: #first reading - store and move on
@@ -570,23 +591,43 @@ for i in range(len(W2_mag)):
         W2_unc_list.append(W2_mag[i][2])
         continue
     elif i == len(W2_mag) - 1: #if final data point, close the epoch
-        W2_list.append(W2_mag[i][0])
-        W2_mjds.append(W2_mag[i][1])
-        W2_unc_list.append(W2_mag[i][2])
-        W2_averages.append(np.median(W2_list))
-        W2_av_mjd_date.append(np.median(W2_mjds))
-        if len(W2_list) > 1:
-            W2_av_uncs.append(median_abs_deviation(W2_list))
-        else:
-            W2_av_uncs.append(W2_unc_list[0])
-        W2_epoch_dps.append(len(W2_list))
-        if p == m:
-            one_epoch_W2 = W2_list
-            one_epoch_W2_unc = W2_unc_list
-            mjd_value = W2_mag[i][1]
+        if W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+            W2_list.append(W2_mag[i][0])
+            W2_mjds.append(W2_mag[i][1])
+            W2_unc_list.append(W2_mag[i][2])
+            W2_averages.append(np.median(W2_list))
+            W2_av_mjd_date.append(np.median(W2_mjds))
+            if len(W2_list) > 1:
+                W2_av_uncs.append(median_abs_deviation(W2_list))
+            else:
+                W2_av_uncs.append(W2_unc_list[0])
+            W2_epoch_dps.append(len(W2_list)) #number of data points in this epoch
+            if p == m:
+                one_epoch_W2 = W2_list
+                one_epoch_W2_unc = W2_unc_list
+                one_epoch_W2_mjd = W2_mjds
+                mjd_value = W2_mag[i][1]
+                p += 1
             p += 1
-        p += 1
-        continue
+            continue
+        else: #final data point is in an epoch of its own
+            W2_averages.append(np.median(W2_list))
+            W2_av_mjd_date.append(np.median(W2_mjds))
+            if len(W2_list) > 1:
+                W2_av_uncs.append(median_abs_deviation(W2_list))
+            else:
+                W2_av_uncs.append(W2_unc_list[0])
+            W2_epoch_dps.append(len(W2_list))
+            if p == m:
+                one_epoch_W2 = W2_list
+                one_epoch_W2_unc = W2_unc_list
+                one_epoch_W2_mjd = W2_mjds
+                mjd_value = W2_mag[i][1]
+                p += 1
+            W2_averages.append(W2_mag[i][0])
+            W2_av_mjd_date.append(W2_mag[i][1])
+            W2_av_uncs.append(W2_mag[i][2])
+            continue
     elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
         W2_list.append(W2_mag[i][0])
         W2_mjds.append(W2_mag[i][1])
@@ -600,7 +641,7 @@ for i in range(len(W2_mag)):
         else:
             W2_av_uncs.append(W2_unc_list[0])
         W2_epoch_dps.append(len(W2_list))
-        if p == m:
+        if p == n:
             one_epoch_W2 = W2_list
             one_epoch_W2_unc = W2_unc_list
             mjd_value = W2_mag[i][1]
@@ -741,7 +782,9 @@ print(f'2nd largest W2 = {W2_second_largest:.4f}')
 
 W1_smallest_unc = sorted(W1_av_uncs_flux)[0]
 print(f'Smallest W1 Unc = {W1_smallest_unc:.6f}')
-print(f'W1 epoch {m+1} = {one_epoch_W1}')
+print(f'W1 epoch {m+1} = {W1_one_epoch_flux}')
+print(f'W1 epoch {m+1} uncs = {W1_one_epoch_uncs_flux}')
+print(f'W1 epoch {m+1} mjds = {one_epoch_W1_mjd}')
 
 # Plotting average W1 & W2 mags (or flux) vs days since first observation
 plt.figure(figsize=(12,7))
@@ -803,7 +846,7 @@ plt.show()
 
 
 # # Specifically looking at a particular epoch:
-# # Change 'm = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
+# # Change 'm = _' and 'n = _' in above code to change which epoch you look at. m = 0 represents epoch 1.
 # # (measurements are taken with a few days hence considered repeats)
 # # Create a figure with two subplots (1 row, 2 columns)
 # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7), sharex=False)
@@ -828,7 +871,7 @@ plt.show()
 # ax2.set_ylabel('Flux')
 # ax2.legend(loc='upper left')
 
-# fig.suptitle(f'W1 & W2 band Measurements at Epoch {m+1} - {W1_av_mjd_date[m]:.0f} Days Since First Observation', fontsize=16)
+# fig.suptitle(f'W1 & W2 band Measurements at Epoch {m+1} and {n+1} respectively - {W1_av_mjd_date[m]:.0f} {W1_av_mjd_date[n]:.0f} Days Since First Observation respectively', fontsize=16)
 # plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
 # plt.show()
 
@@ -848,7 +891,7 @@ plt.show()
 # ax2.set_xlabel('Magnitude')
 # ax2.set_ylabel('Frequency')
 
-# plt.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} - {mjd_value:.0f} Days Since First Observation', fontsize=16)
+# plt.suptitle(f'W1 & W2 Magnitude Measurements at Epoch {m+1} and {n+1} respectively - {W1_av_mjd_date[m]:.0f} {W1_av_mjd_date[n]:.0f} Days Since First Observation respectively', fontsize=16)
 # plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout to make space for the main title
 # plt.show()
 
@@ -948,7 +991,7 @@ ax1.set_xlabel('Days since first observation', fontsize = 16)
 ax1.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$', fontsize = 16, loc='center')
 ax1.tick_params(axis='both', which='major', labelsize = 16)
 ax1.set_title(f'Flux vs Time (WISEA J{object_name})', fontsize = 22)
-ax1.legend(loc='best', fontsize = 18)
+ax1.legend(loc='upper left', fontsize = 18)
 
 # Bottom left plot spanning 2 rows and 1 column (ax2)
 ax2 = fig.add_subplot(gs[3:, 0])  # Rows 3 to 4, first column
@@ -974,6 +1017,7 @@ ax2.set_xlabel('Wavelength / Å', fontsize = 16)
 ax2.set_ylim(common_ymin, common_ymax)
 ax2.set_ylabel('Flux / $10^{-17}$ ergs $s^{-1}$ $cm^{-2}$ $Å^{-1}$', fontsize = 15)
 ax2.tick_params(axis='both', which='major', labelsize=16)
+ax2.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
 ax2.set_title('SDSS Spectrum', fontsize = 14)
 ax2.legend(loc='upper right', fontsize = 18)
 
@@ -1001,6 +1045,7 @@ ax3.set_xlabel('Wavelength / Å', fontsize = 16)
 ax3.set_ylim(common_ymin, common_ymax)
 ax3.set_yticks([])
 ax3.tick_params(axis='x', which='major', labelsize=16)
+ax3.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
 ax3.set_title('DESI Spectrum', fontsize = 14)
 ax3.legend(loc='upper right', fontsize = 18)
 

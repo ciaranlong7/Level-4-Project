@@ -11,10 +11,10 @@ parent_sample = pd.read_csv('clean_parent_sample_no_CLAGN.csv')
 Guo_table4 = pd.read_csv("Guo23_table4_clagn.csv")
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-# object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
+object_names = [object_name for object_name in Guo_table4.iloc[:, 0] if pd.notna(object_name)]
 
 # #When changing object names list from CLAGN to AGN - I must change the files I am saving to at the bottom as well.
-object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
+# object_names = parent_sample.iloc[:, 3].sample(n=250, random_state=42) #randomly selecting 250 object names from clean parent sample
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -78,19 +78,19 @@ for object_name in object_names:
     print(g)
     print(object_name)
     g += 1
-    # For AGN:
-    object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
-    SDSS_RA = object_data.iloc[0, 0]
-    SDSS_DEC = object_data.iloc[0, 1]
-    SDSS_z = object_data.iloc[0, 2]
-    DESI_z = object_data.iloc[0, 9]
+    # # For AGN:
+    # object_data = parent_sample[parent_sample.iloc[:, 3] == object_name]
+    # SDSS_RA = object_data.iloc[0, 0]
+    # SDSS_DEC = object_data.iloc[0, 1]
+    # SDSS_z = object_data.iloc[0, 2]
+    # DESI_z = object_data.iloc[0, 9]
 
-    # #For CLAGN:
-    # object_data = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
-    # SDSS_RA = object_data.iloc[0, 1]
-    # SDSS_DEC = object_data.iloc[0, 2]
-    # SDSS_z = object_data.iloc[0, 3]
-    # DESI_z = object_data.iloc[0, 3]
+    #For CLAGN:
+    object_data = Guo_table4[Guo_table4.iloc[:, 0] == object_name]
+    SDSS_RA = object_data.iloc[0, 1]
+    SDSS_DEC = object_data.iloc[0, 2]
+    SDSS_z = object_data.iloc[0, 3]
+    DESI_z = object_data.iloc[0, 3]
 
     # Automatically querying catalogues
     coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works.
@@ -155,15 +155,22 @@ for object_name in object_names:
                 W1_unc_list.append(W1_mag[i][2])
                 continue
             elif i == len(W1_mag) - 1: #if final data point, close the epoch
-                W1_list.append(W1_mag[i][0])
-                W1_mjds.append(W1_mag[i][1])
-                W1_unc_list.append(W1_mag[i][2])
-                # W1_data.append( ( np.median(W1_list), np.median(W1_mjds), (1/len(W1_unc_list))*np.sqrt(np.sum(np.square(W1_unc_list))) ) )
-                if len(W1_list) > 1:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
-                else:
-                    W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
-                continue
+                if W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+                    W1_list.append(W1_mag[i][0])
+                    W1_mjds.append(W1_mag[i][1])
+                    W1_unc_list.append(W1_mag[i][2])
+                    if len(W1_list) > 1:
+                        W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                    else:
+                        W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                    continue
+                else: #final data point is in an epoch of its own
+                    if len(W1_list) > 1:
+                        W1_data.append( ( np.median(W1_list), np.median(W1_mjds), median_abs_deviation(W1_list) ) )
+                    else:
+                        W1_data.append( ( np.median(W1_list), np.median(W1_mjds), W1_unc_list[0] ) )
+                    W1_data.append( ( np.median(W1_mag[i][0]), np.median(W1_mag[i][1]), W1_mag[i][2] ) )
+                    continue
             elif W1_mag[i][1] - W1_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W1_list.append(W1_mag[i][0])
                 W1_mjds.append(W1_mag[i][1])
@@ -199,15 +206,22 @@ for object_name in object_names:
                 W2_unc_list.append(W2_mag[i][2])
                 continue
             elif i == len(W2_mag) - 1: #if final data point, close the epoch
-                W2_list.append(W2_mag[i][0])
-                W2_mjds.append(W2_mag[i][1])
-                W2_unc_list.append(W2_mag[i][2])
-                # W2_data.append( ( np.median(W2_list), np.median(W2_mjds), (1/len(W2_unc_list))*np.sqrt(np.sum(np.square(W2_unc_list))) ) )
-                if len(W2_list) > 1:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
-                else:
-                    W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
-                continue
+                if W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking if final data point is in the same epoch as previous
+                    W2_list.append(W2_mag[i][0])
+                    W2_mjds.append(W2_mag[i][1])
+                    W2_unc_list.append(W2_mag[i][2])
+                    if len(W2_list) > 1:
+                        W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                    else:
+                        W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                    continue
+                else: #final data point is in an epoch of its own
+                    if len(W2_list) > 1:
+                        W2_data.append( ( np.median(W2_list), np.median(W2_mjds), median_abs_deviation(W2_list) ) )
+                    else:
+                        W2_data.append( ( np.median(W2_list), np.median(W2_mjds), W2_unc_list[0] ) )
+                    W2_data.append( ( np.median(W2_mag[i][0]), np.median(W2_mag[i][1]), W2_mag[i][2] ) )
+                    continue
             elif W2_mag[i][1] - W2_mag[i-1][1] < 100: #checking in the same epoch (<100 days between measurements)
                 W2_list.append(W2_mag[i][0])
                 W2_mjds.append(W2_mag[i][1])
@@ -604,5 +618,5 @@ quantifying_change_data = {
 df = pd.DataFrame(quantifying_change_data)
 
 #Creating a csv file of my data
-# df.to_csv("CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
-df.to_csv("AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
+df.to_csv("CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)
+# df.to_csv("AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv", index=False)

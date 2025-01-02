@@ -198,7 +198,7 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 # plt.yticks(fontsize=24)
 # plt.xlabel("Z-Score", fontsize = 24)
 # plt.ylabel("Normalised Flux Difference", fontsize = 24)
-# plt.title("Quantifying MIR Variability in AGN", fontsize = 24)
+# plt.title("Investigating MIR Variability in AGN", fontsize = 24)
 # plt.legend(loc = 'best', fontsize=22)
 # plt.grid(True, linestyle='--', alpha=0.5)
 # plt.tight_layout()
