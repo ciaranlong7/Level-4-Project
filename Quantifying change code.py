@@ -27,7 +27,7 @@ print(f'Median AGN sample redshift = {median_AGN_redshift:.3f}')
 
 #Quantifying change data
 CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv')
-# CLAGN_quantifying_change_data_mean_uncs = pd.read_csv('CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
+# CLAGN_quantifying_change_data = pd.read_csv('CLAGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
 print(f'Number of CLAGN: {len(CLAGN_quantifying_change_data)}')
 CLAGN_zscores = CLAGN_quantifying_change_data.iloc[:, 17].tolist()  # 18th column
 CLAGN_zscore_uncs = CLAGN_quantifying_change_data.iloc[:, 18].tolist()
@@ -48,7 +48,7 @@ for i in range(len(CLAGN_quantifying_change_data)):
     CLAGN_new_norm_change.append(CLAGN_norm_flux_change[i]/CLAGN_W1_median_flux_unc[i])
 
 AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest.csv')
-# AGN_quantifying_change_data_mean_uncs = pd.read_csv('AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
+# AGN_quantifying_change_data = pd.read_csv('AGN_Quantifying_Change_just_MIR_2nd_biggest_smallest_mean_uncs.csv')
 print(f'Number of AGN: {len(AGN_quantifying_change_data)}')
 AGN_zscores = AGN_quantifying_change_data.iloc[:, 17].tolist()
 AGN_zscore_uncs = AGN_quantifying_change_data.iloc[:, 18].tolist()
@@ -184,15 +184,15 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 
 # # # #Creating a 2d plot for normalised flux difference & z score:
 # plt.figure(figsize=(12, 7))
-# plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Non-CL AGN')
-# plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='CLAGN')
-# # plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, fmt='o', color='blue', label='Non-CL AGN')
-# # plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, fmt='o', color='red',  label='CLAGN')
+# # plt.scatter(AGN_zscores, AGN_norm_flux_change, color='blue', label='Non-CL AGN')
+# # plt.scatter(CLAGN_zscores, CLAGN_norm_flux_change, color='red',  label='CLAGN')
+# plt.errorbar(AGN_zscores, AGN_norm_flux_change, xerr=AGN_zscore_uncs, yerr=AGN_norm_flux_change_unc, fmt='o', color='blue', label='Non-CL AGN')
+# plt.errorbar(CLAGN_zscores, CLAGN_norm_flux_change, xerr=CLAGN_zscore_uncs, yerr=CLAGN_norm_flux_change_unc, fmt='o', color='red',  label='CLAGN')
 # plt.axhline(y=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label='Threshold')
 # plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2)
-# # plt.xlim(0, 50)
+# plt.xlim(0, 50)
 # # plt.ylim(0, 5)
-# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+# # plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
 # plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
 # plt.xticks(fontsize=24)
 # plt.yticks(fontsize=24)
