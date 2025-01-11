@@ -24,7 +24,7 @@ c = 299792458
 #G23 dust extinction model:
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
-# object_name = '152517.57+401357.6' #Object A - assigned to me
+object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chose an AGN, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
@@ -55,7 +55,7 @@ c = 299792458
 # object_name = '121947.25+575744.4'
 
 # object_name = '160730.20+560305.5' #Object W - chosen because a CLAGN that exhibits no MIR change over SDSS-DESI range, but does exhibit a change after
-object_name = '115838.31+541619.5' #Object X - chosen because not a CLAGN but shows some variability
+# object_name = '115838.31+541619.5' #Object X - chosen because not a CLAGN but shows some variability
 
 #option 1 = Not interested in SDSS or DESI spectrum (MIR only)
 #option 2 = Object is a CLAGN, so take SDSS and DESI spectrum from downloads
@@ -65,9 +65,9 @@ object_name = '115838.31+541619.5' #Object X - chosen because not a CLAGN but sh
 option = 1
 
 #Selecting which plots you want. Set = 1 if you want that plot
-MIR_only = 0 #plot with just MIR data on it
+MIR_only = 1 #plot with just MIR data on it
 SDSS_DESI = 0 #2 plots, each one with just a SDSS or DESI spectrum
-main_plot = 1 #main plot, with MIR, SDSS & DESI
+main_plot = 0 #main plot, with MIR, SDSS & DESI
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -122,7 +122,6 @@ else:
     DESI_name = object_data.iloc[0, 10]
 
 coord = SkyCoord(SDSS_RA, SDSS_DEC, unit='deg', frame='icrs') #This works
-
 
 def get_sdss_spectra():
     #Automatically querying the SDSS database
@@ -745,8 +744,10 @@ W2_av_mjd_date = [date - min_mjd for date in W2_av_mjd_date]
 
 
 W1_averages_flux = [flux(mag, W1_k, W1_wl) for mag in W1_averages]
+# W1_averages_flux = W1_averages #for when using raw flux
 W2_averages_flux = [flux(mag, W2_k, W2_wl) for mag in W2_averages]
 W1_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W1_av_uncs, W1_averages_flux)] #See document in week 5 folder for conversion.
+# W1_av_uncs_flux = W1_av_uncs
 W2_av_uncs_flux = [((unc*np.log(10))/(2.5))*flux for unc, flux in zip(W2_av_uncs, W2_averages_flux)]
 
 W1_one_epoch_flux = [flux(mag, W1_k, W1_wl) for mag in one_epoch_W1]
