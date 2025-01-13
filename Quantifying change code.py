@@ -145,6 +145,99 @@ print(f'{k}/{len(CLAGN_norm_flux_change)}={k/len(CLAGN_norm_flux_change)*100:.3f
 print(f'{j}/{len(AGN_zscores)}={j/len(AGN_zscores)*100:.3f}% of AGN above zscore threshold')
 print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% of AGN above norm_change threshold')
 
+### BELOW INVESTIGATION CHECKS WHETHER ELIMINATING OBJECTS WITH A HIGH UNC RATIO (eg NFD_UNC/NFD) IMPROVES RESULTS.
+### I find that eliminating objects with a high unc ratio increases the amount of CLAGN & non-CL AGN that are above the thresholds.
+### However, this is in a proportionate manner. 
+### I.e., ratio of CLAGN to non CL AGN above the thresholds remains ~10x for NFD and ~3x for zscore.
+
+CLAGN_norm_uncpc = []
+CLAGN_z_uncpc = []
+test_CLAGN_zscores = []
+test_CLAGN_nfd = []
+for i in range(len(CLAGN_quantifying_change_data)):
+    CLAGN_norm_uncpc.append(CLAGN_norm_flux_change_unc[i]/CLAGN_norm_flux_change[i])
+    CLAGN_z_uncpc.append(CLAGN_zscore_uncs[i]/CLAGN_zscores[i])
+    if CLAGN_zscore_uncs[i]/CLAGN_zscores[i] > 0.5:
+        # print(f'CLAGN Unc % = {CLAGN_norm_flux_change_unc[i]/CLAGN_norm_flux_change[i]*100:.3f}')
+        # print(f'CLAGN Z Score = {CLAGN_zscores[i]}')
+        # print(f'CLAGN NFD = {CLAGN_norm_flux_change[i]}')
+        continue
+    else: #unc % <50
+        test_CLAGN_zscores.append(CLAGN_zscores[i])
+        test_CLAGN_nfd.append(CLAGN_norm_flux_change[i])
+
+CLAGN_norm_fifty = len([x for x in CLAGN_norm_uncpc if x > 0.5])
+CLAGN_z_fifty = len([x for x in CLAGN_z_uncpc if x > 0.5])
+
+print(f'{CLAGN_norm_fifty/len(CLAGN_quantifying_change_data)*100:.3f}% of CLAGN have a NFD unc > 50% of NFD value')
+print(f'{CLAGN_z_fifty/len(CLAGN_quantifying_change_data)*100:.3f}% of CLAGN have a zscore unc > 50% of zscore value')
+
+AGN_norm_uncpc = []
+AGN_z_uncpc = []
+test_AGN_zscores = []
+test_AGN_zscore_unc = []
+test_AGN_nfd = []
+test_AGN_nfd_unc = []
+for i in range(len(AGN_quantifying_change_data)):
+    AGN_norm_uncpc.append(AGN_norm_flux_change_unc[i]/AGN_norm_flux_change[i])
+    AGN_z_uncpc.append(AGN_zscore_uncs[i]/AGN_zscores[i])
+    if AGN_zscore_uncs[i]/AGN_zscores[i] > 0.5:
+        # print(f'AGN Unc % = {AGN_norm_flux_change_unc[i]/AGN_norm_flux_change[i]*100:.3f}')
+        # print(f'AGN Z Score = {AGN_zscores[i]}')
+        # print(f'AGN NFD = {AGN_norm_flux_change[i]}')
+        continue
+    else: #unc % <50
+        test_AGN_zscores.append(AGN_zscores[i])
+        test_AGN_zscore_unc.append(AGN_zscore_uncs[i])
+        test_AGN_nfd.append(AGN_norm_flux_change[i])
+        test_AGN_nfd_unc.append(AGN_norm_flux_change_unc[i])
+
+AGN_norm_fifty = len([x for x in AGN_norm_uncpc if x > 0.5])
+AGN_z_fifty = len([x for x in CLAGN_z_uncpc if x > 0.5])
+
+print(f'{AGN_norm_fifty/len(AGN_quantifying_change_data)*100:.3f}% of AGN have a NFD unc > 50% of NFD value')
+print(f'{AGN_z_fifty/len(AGN_quantifying_change_data)*100:.3f}% of AGN have a zscore unc > 50% of zscore value')
+
+test_median_norm_flux_change = np.nanmedian(test_AGN_nfd)
+test_median_norm_flux_change_unc = np.nanmedian(test_AGN_nfd_unc)
+test_three_sigma_norm_flux_change = test_median_norm_flux_change + 3*test_median_norm_flux_change_unc
+test_median_zscore = np.nanmedian(test_AGN_zscores)
+test_median_zscore_unc = np.nanmedian(test_AGN_zscore_unc)
+test_three_sigma_zscore = test_median_zscore + 3*test_median_zscore_unc
+
+print(f'Test Median norm flux difference = {test_median_norm_flux_change:.4f}')
+print(f'Test Median norm flux difference unc = {test_median_norm_flux_change_unc:.4f}')
+print(f'Test 3\u03C3 significance for norm flux difference = {test_three_sigma_norm_flux_change:.4f}')
+print(f'Test Median z score = {test_median_zscore:.4f}')
+print(f'Test Median z score unc = {test_median_zscore_unc:.4f}')
+print(f'Test 3\u03C3 significance for z score = {test_three_sigma_zscore:.4f}')
+
+i = 0
+for zscore in test_CLAGN_zscores:
+    if zscore > test_three_sigma_zscore:
+        i += 1
+j = 0
+for zscore in test_AGN_zscores:
+    if zscore > test_three_sigma_zscore:
+        j += 1
+k = 0
+for normchange in test_CLAGN_nfd:
+    if normchange > test_three_sigma_norm_flux_change:
+        k += 1
+l = 0
+for normchange in test_AGN_nfd:
+    if normchange > test_three_sigma_norm_flux_change:
+        l += 1
+
+print('Eliminated Objects with unc % > 50:')
+print(f'{i}/{len(test_CLAGN_zscores)}={i/len(test_CLAGN_zscores)*100:.3f}% of CLAGN above zscore threshold')
+print(f'{k}/{len(test_CLAGN_nfd)}={k/len(test_CLAGN_nfd)*100:.3f}% of CLAGN above norm_change threshold')
+print(f'{j}/{len(test_AGN_zscores)}={j/len(test_AGN_zscores)*100:.3f}% of AGN above zscore threshold')
+print(f'{l}/{len(test_AGN_nfd)}={l/len(test_AGN_nfd)*100:.3f}% of AGN above norm_change threshold')
+
+### END OF INVESTIGATION
+
+
 # # A histogram of z score values & normalised flux difference values
 # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 7))  # Creates a figure with 1 row and 2 columns
 
@@ -207,10 +300,12 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 
 # # # #Creating a 2d plot of z score vs 2nd lowest flux:
 # plt.figure(figsize=(12, 7))
+# plt.scatter(AGN_zscores, AGN_W1_low_flux, color='blue', label='Non-CL AGN')
 # plt.scatter(CLAGN_zscores, CLAGN_W1_low_flux, color='red',  label='CLAGN')
 # plt.axvline(x=three_sigma_zscore, color='black', linestyle='--', linewidth=2, label = 'Threshold')
-# plt.xlim(0, 1.05*max(CLAGN_zscores))
-# plt.ylim(0, 1.05*max(CLAGN_W1_low_flux))
+# plt.xlim(0, 50)
+# # plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+# plt.ylim(0, 1.05*max(CLAGN_W1_low_flux+AGN_W1_low_flux))
 # plt.xticks(fontsize=26)
 # plt.yticks(fontsize=26)
 # plt.xlabel("Z-Score", fontsize = 26)
@@ -224,10 +319,11 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 
 # # # #Creating a 2d plot of norm flux change vs 2nd lowest flux:
 # plt.figure(figsize=(12, 7))
+# plt.scatter(AGN_norm_flux_change, AGN_W1_low_flux, color='blue', label='Non-CL AGN')
 # plt.scatter(CLAGN_norm_flux_change, CLAGN_W1_low_flux, color='red',  label='CLAGN')
 # plt.axvline(x=three_sigma_norm_flux_change, color='black', linestyle='--', linewidth=2, label = 'Threshold')
-# plt.xlim(0, 1.05*max(CLAGN_norm_flux_change))
-# plt.ylim(0, 1.05*max(CLAGN_W1_low_flux))
+# plt.xlim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
+# plt.ylim(0, 1.05*max(CLAGN_W1_low_flux+AGN_W1_low_flux))
 # plt.xticks(fontsize=26)
 # plt.yticks(fontsize=26)
 # plt.xlabel("Normalised Flux Difference", fontsize = 26)
@@ -273,6 +369,7 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 # plt.tight_layout()
 # plt.show()
 
+
 # # # # #Creating a 2d plot of redshift vs unc:
 # plt.figure(figsize=(12, 7))
 # plt.scatter(CLAGN_W1_median_flux_unc, CLAGN_redshifts, color='red',  label='CLAGN')
@@ -288,3 +385,39 @@ print(f'{l}/{len(AGN_norm_flux_change)}={l/len(AGN_norm_flux_change)*100:.3f}% o
 # plt.grid(True, linestyle='--', alpha=0.5)
 # plt.tight_layout()
 # plt.show()
+
+
+# # # #Creating a 2d plot of zscore vs z score unc:
+plt.figure(figsize=(12, 7))
+plt.scatter(AGN_zscores, AGN_zscore_uncs, color='blue',  label='Non-CL AGN')
+plt.scatter(CLAGN_zscores, CLAGN_zscore_uncs, color='red',  label='CLAGN')
+plt.xlim(0, 50)
+plt.ylim(0, 20)
+# plt.xlim(0, 1.05*max(CLAGN_zscores+AGN_zscores))
+# plt.ylim(0, 1.05*max(CLAGN_zscore_uncs+AGN_zscore_uncs))
+plt.xticks(fontsize=24)
+plt.yticks(fontsize=24)
+plt.xlabel("Z-Score", fontsize = 24)
+plt.ylabel("Z-Score Uncertainty", fontsize = 24)
+plt.title("Z-Score Uncertainty vs Z-Score", fontsize = 24)
+plt.legend(loc = 'best', fontsize=22)
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+
+# # # #Creating a 2d plot of zscore vs z score unc:
+plt.figure(figsize=(12, 7))
+plt.scatter(AGN_norm_flux_change_unc, AGN_norm_flux_change, color='blue',  label='Non-CL AGN')
+plt.scatter(CLAGN_norm_flux_change_unc, CLAGN_norm_flux_change, color='red',  label='CLAGN')
+plt.xlim(0, 1.05*max(CLAGN_norm_flux_change_unc+AGN_norm_flux_change_unc))
+plt.ylim(0, 1.05*max(CLAGN_norm_flux_change+AGN_norm_flux_change))
+plt.xticks(fontsize=24)
+plt.yticks(fontsize=24)
+plt.xlabel("NFD Uncertainty", fontsize = 24)
+plt.ylabel("NFD", fontsize = 24)
+plt.title("NFD vs NFD Uncertainty", fontsize = 24)
+plt.legend(loc = 'best', fontsize=22)
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()

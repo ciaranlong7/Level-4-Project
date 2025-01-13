@@ -24,7 +24,7 @@ c = 299792458
 #G23 dust extinction model:
 #https://dust-extinction.readthedocs.io/en/latest/api/dust_extinction.parameter_averages.G23.html#dust_extinction.parameter_averages.G23
 
-object_name = '152517.57+401357.6' #Object A - assigned to me
+# object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '141923.44-030458.7' #Object B - chosen because of very high redshift
 # object_name = '115403.00+003154.0' #Object C - randomly chose an AGN, but it had a low redshift also
 # object_name = '140957.72-012850.5' #Object D - chosen because of very high z scores
@@ -37,9 +37,9 @@ object_name = '152517.57+401357.6' #Object A - assigned to me
 # object_name = '160833.97+421413.4' #Object I - chosen because not a CLAGN, but in AGN parent sample & has high normalised flux change
 # object_name = '164837.68+311652.7' #Object J - chosen because not a CLAGN, but in AGN parent sample & has high z scores
 # object_name = '085913.72+323050.8' #Chosen because can't search for SDSS spectrum automatically
-# object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit.
+object_name = '115103.77+530140.6' #Object K - chosen to illustrate no need for min dps limit, but need for max gap limit. Norm flux change = 2.19
 # object_name = '075448.10+345828.5' #Object L - chosen because only 1 day into ALLWISE-NEOWISE gap
-# object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap
+# object_name = '144051.17+024415.8' #Object M - chosen because only 30 days into ALLWISE-NEOWISE gap. Norm flux change = 1.88
 # object_name = '164331.90+304835.5' #Object N - chosen due to enourmous Z score (120)
 # object_name = '163826.34+382512.1' #Object O - chosen because not a CLAGN, but has enourmous normalised flux change
 # object_name = '141535.46+022338.7' #Object P - chosen because of very high z score
@@ -62,12 +62,12 @@ object_name = '152517.57+401357.6' #Object A - assigned to me
 #option 3 = download just sdss spectrum from the internet
 #option 4 = download both sdss & desi spectra from the internet
 #This prevents unnecessary querying of the databases. DESI database will time out if you spam it.
-option = 1
+option = 2
 
 #Selecting which plots you want. Set = 1 if you want that plot
-MIR_only = 1 #plot with just MIR data on it
+MIR_only = 0 #plot with just MIR data on it
 SDSS_DESI = 0 #2 plots, each one with just a SDSS or DESI spectrum
-main_plot = 0 #main plot, with MIR, SDSS & DESI
+main_plot = 1 #main plot, with MIR, SDSS & DESI
 
 def flux(mag, k, wavel): # k is the zero magnitude flux density. For W1 & W2, taken from a data table on the search website - https://wise2.ipac.caltech.edu/docs/release/allsky/expsup/sec4_4h.html
     k = (k*(10**(-6))*(c*10**(10)))/(wavel**2) # converting from Jansky to 10-17 ergs/s/cm2/Å. Express c in Angstrom units
@@ -1170,7 +1170,7 @@ if main_plot == 1:
     ax2.set_ylim(common_ymin, common_ymax)
     ax2.set_ylabel('Flux / $10^{-17}$ergs $s^{-1}cm^{-2}Å^{-1}$', fontsize = 15)
     ax2.tick_params(axis='both', which='major', labelsize=16)
-    ax2.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
+    # ax2.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
     ax2.set_title('SDSS Spectrum', fontsize = 14)
     ax2.legend(loc='upper right', fontsize = 18)
 
@@ -1198,7 +1198,7 @@ if main_plot == 1:
     ax3.set_ylim(common_ymin, common_ymax)
     ax3.set_yticks([])
     ax3.tick_params(axis='x', which='major', labelsize=16)
-    ax3.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
+    # ax3.xaxis.set_major_locator(MultipleLocator(750))  # Major ticks every 750 Å
     ax3.set_title('DESI Spectrum', fontsize = 14)
     ax3.legend(loc='upper right', fontsize = 18)
 
