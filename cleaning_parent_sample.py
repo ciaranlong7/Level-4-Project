@@ -126,7 +126,7 @@ guo_parent = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
 # clean_sample = clean_sample.drop_duplicates(subset=columns_to_check)
 # clean_sample.to_csv('clean_parent_sample.csv', index=False) 
 # print(f'length of clean sample after dropping duplicates = {len(clean_sample)}')
-# #This recovered 6199 objects.
+# #This recovered 8353 objects.
 
 
 # ##Checking if any Guo CLAGN are in sample
@@ -139,3 +139,54 @@ guo_parent = pd.read_csv('guo23_parent_sample_no_duplicates.csv')
 # print(f'Objects in cleaned sample after CLAGN removed = {len(no_CLAGN)}')
 
 # no_CLAGN.to_csv('clean_parent_sample_no_CLAGN.csv', index=False)
+
+
+# ## Now constructing the sample of 280 AGN:
+# guo_CLAGN = pd.read_csv('Guo23_table4_clagn.csv')
+# guo_CLAGN = guo_CLAGN.dropna(subset=[guo_CLAGN.columns[0]]) #removing the 8 CLAGN with 2 CL lines
+# parent_sample = pd.read_csv('clean_parent_sample_no_CLAGN.csv')
+
+# AGN_Sample = []
+# # Iterate through each row in guo_CLAGN
+# for _, CLAGN_row in guo_CLAGN.iterrows():
+#     CLAGN_z = CLAGN_row.iloc[3]    
+#     # Calculates the difference between the every single parent z & this CLAGN's z
+#     parent_sample['difference'] = np.abs(parent_sample.iloc[:, 9] - CLAGN_z) #Creates a new 'difference' row in parent_sample df
+    
+#     # Get the 5 rows from the parent sample with the smallest differences
+#     closest_rows = parent_sample.nsmallest(5, 'difference')
+#     # print(closest_rows.index)
+#     # print(closest_rows)
+#     parent_sample = parent_sample.drop(closest_rows.index) #remove these 5 rows from the parent sample so they can't be selected on the next iteration
+
+#     # Append these 5 rows to the output list
+#     for _, parent_row in closest_rows.iterrows():
+#         AGN_Sample.append(parent_row)
+# output_df = pd.DataFrame(AGN_Sample)
+# output_df.to_csv('AGN_Sample.csv', index=False)
+
+# AGN_Sample_two = []
+# #The 280 AGN in the first AGN_sample have already been removed
+# for _, CLAGN_row in guo_CLAGN.iterrows():
+#     CLAGN_z = CLAGN_row.iloc[3]
+#     parent_sample['difference'] = np.abs(parent_sample.iloc[:, 9] - CLAGN_z)
+#     closest_rows = parent_sample.nsmallest(5, 'difference')
+#     parent_sample = parent_sample.drop(closest_rows.index)
+
+#     for _, parent_row in closest_rows.iterrows():
+#         AGN_Sample_two.append(parent_row)
+# output_df_two = pd.DataFrame(AGN_Sample_two)
+# output_df_two.to_csv('AGN_Sample_two.csv', index=False)
+
+# AGN_Sample_three = []
+# #The 560 AGN in the first & second AGN_sample have already been removed
+# for _, CLAGN_row in guo_CLAGN.iterrows():
+#     CLAGN_z = CLAGN_row.iloc[3]
+#     parent_sample['difference'] = np.abs(parent_sample.iloc[:, 9] - CLAGN_z)
+#     closest_rows = parent_sample.nsmallest(5, 'difference')
+#     parent_sample = parent_sample.drop(closest_rows.index)
+
+#     for _, parent_row in closest_rows.iterrows():
+#         AGN_Sample_three.append(parent_row)
+# output_df_three = pd.DataFrame(AGN_Sample_three)
+# output_df_three.to_csv('AGN_Sample_three.csv', index=False)
